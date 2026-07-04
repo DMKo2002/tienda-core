@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { ImageOff } from 'lucide-react'
 
 interface ProductCardProps {
@@ -113,7 +112,7 @@ export default function ProductCard({
 
   // Props pre-procesadas desde tienda/page.tsx:
   //   retailPrice     = precio efectivo (lo que paga el cliente, ej: 18000)
-  //   retailCompareAt = precio regular tachado (el más alto, ej: 20000)
+  //   retailCompareAt = precio regular tachado (el mas alto, ej: 20000)
   const hasDiscount = !!(retailCompareAt && retailCompareAt > (retailPrice ?? 0))
   const salePrice   = retailPrice
   const discountPct = hasDiscount
@@ -127,26 +126,26 @@ export default function ProductCard({
       style={{ animationDelay: `${index * 80}ms`, animationFillMode: 'forwards' }}
     >
       {/* Imagen */}
-      <div className="product-img-wrap bg-[#F2EEE9] aspect-[3/4] w-full mb-3 relative overflow-hidden">
+      <div
+        className="product-img-wrap"
+        style={{ aspectRatio: '3/4', width: '100%', backgroundColor: '#F2EEE9', marginBottom: '0.75rem', position: 'relative', overflow: 'hidden' }}
+      >
         {coverUrl ? (
-          <Image
-            src={coverUrl.split('?')[0]}
+          <img
+            src={coverUrl}
             alt={name}
-            fill
-            className="object-cover transition-opacity duration-300"
-            sizes="(max-width: 768px) 50vw, 25vw"
-            priority={index < 6}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'opacity 0.3s' }}
             loading={index < 6 ? 'eager' : 'lazy'}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <ImageOff size={32} className="text-[var(--color-border)]" />
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ImageOff size={32} style={{ color: 'var(--color-border)' }} />
           </div>
         )}
 
         {/* Badge descuento */}
         {discountPct && (
-          <div className="absolute top-2 left-2 bg-[var(--color-charcoal)] text-white text-[10px] tracking-[0.1em] uppercase px-2 py-1">
+          <div style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'var(--color-charcoal)', color: 'white', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 8px' }}>
             -{discountPct}%
           </div>
         )}
@@ -159,4 +158,85 @@ export default function ProductCard({
         </p>
 
         {/* Precio */}
-        <div className="flex items-center gap-2 mb-2.5">
+        <div className="flex items-center gap-2 mb-2.5">
+          {showPrices ? (
+            <>
+              {salePrice ? (
+                <>
+                  <span className={`text-sm ${hasDiscount ? 'text-[var(--color-charcoal)] font-medium' : 'text-[var(--color-charcoal)]'}`}>
+                    {formatPrice(salePrice)}
+                  </span>
+                  {hasDiscount && (
+                    <span className="text-xs text-[var(--color-stone)] line-through">
+                      {formatPrice(retailCompareAt!)}
+                    </span>
+                  )}
+                  {showWholesale && wholesalePrice && (
+                    <span className="text-xs text-[var(--color-stone)]">
+                      Mayor: {formatPrice(wholesalePrice)}
+                    </span>
+                  )}
+                </>
+              ) : showWholesale && wholesalePrice ? (
+                <span className="text-sm text-[var(--color-charcoal)]">
+                  {formatPrice(wholesalePrice)}
+                </span>
+              ) : null}
+            </>
+          ) : isRetailUser ? (
+            <span className="text-xs text-[var(--color-stone)]">
+              Solo para cuentas mayoristas
+            </span>
+          ) : (
+            <a
+              href="/cuenta/login"
+              onClick={e => e.stopPropagation()}
+              className="text-xs text-[var(--color-stone)] hover:text-[var(--color-charcoal)] transition-colors underline"
+            >
+              {priceVisibility === 'wholesale_only' ? 'Precio solo para mayoristas' : 'Inicia sesion para ver precio'}
+            </a>
+          )}
+        </div>
+
+        {/* Colores */}
+        {colors.length > 0 && (
+          <div className="flex gap-1.5 flex-wrap mb-2">
+            {colors.map(color => {
+              const hex = getColorHex(color)
+              const light = isLight(hex)
+              return (
+                <span
+                  key={color}
+                  title={color}
+                  style={{
+                    backgroundColor: hex,
+                    width: 16, height: 16, borderRadius: '50%', display: 'inline-block',
+                    border: light ? '1px solid #D0CBC3' : '1px solid transparent', flexShrink: 0,
+                  }}
+                />
+              )
+            })}
+          </div>
+        )}
+
+        {/* Talles */}
+        {sizes.length > 0 && (
+          <div className="flex gap-1 flex-wrap">
+            {sizes.map(size => (
+              <span
+                key={size}
+                style={{
+                  fontSize: 10, letterSpacing: '0.05em', color: 'var(--color-stone)',
+                  border: '1px solid var(--color-border)', borderRadius: 3,
+                  padding: '1px 5px', lineHeight: 1.6,
+                }}
+              >
+                {size}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </Link>
+  )
+}
