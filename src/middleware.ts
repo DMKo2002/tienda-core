@@ -45,8 +45,8 @@ export async function middleware(req: NextRequest) {
       { cookies: { getAll: () => [], setAll: () => {} } }
     )
 
-    if (host.endsWith('.creart.com')) {
-      const slug = host.replace(/\.creart\.com$/, '')
+    if (host.endsWith('.gounuri.com')) {
+      const slug = host.replace(/\.gounuri\.com$/, '')
       if (slug) {
         const { data } = await supabaseTenant
           .from('tenants')

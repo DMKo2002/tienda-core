@@ -8,6 +8,20 @@
 4. No agregar README ni .gitignore (ya los tenemos)
 5. Crear el repo
 
+
+## ⚠️ Tailwind CSS — paso obligatorio
+
+En el  de cada template, agregar el path de tienda-core al :
+
+```ts
+content: [
+  './src/**/*.{js,ts,jsx,tsx,mdx}',
+  './node_modules/@creart/tienda-core/src/**/*.{js,ts,jsx,tsx}',
+],
+```
+
+Sin esto, las clases Tailwind de los componentes de tienda-core no se incluyen en el CSS y los componentes no se renderizan visualmente.
+
 ## 2. Inicializar git en tienda-core y pushear
 
 Desde la terminal, dentro de `C:\Plataforma CreArt\tienda-core`:

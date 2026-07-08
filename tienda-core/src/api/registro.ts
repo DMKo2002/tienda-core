@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError || !signInData.user)
         return NextResponse.json(
-          { error: 'Ya existe una cuenta con ese email. Si ya compraste en otra tienda CreArt, usá la misma contraseña — o iniciá sesión.' },
+          { error: 'Ya existe una cuenta con ese email. Si ya compraste en otra tienda gounuri, usá la misma contraseña — o iniciá sesión.' },
           { status: 409 }
         )
       userId = signInData.user.id
