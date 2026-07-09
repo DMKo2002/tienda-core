@@ -7,6 +7,7 @@
     "./ProductCard": "./src/components/shop/ProductCard.tsx",
     "./AddToCartButton": "./src/components/shop/AddToCartButton.tsx",
     "./CartContext": "./src/components/shop/CartContext.tsx",
+    "./useCartValidation": "./src/components/shop/useCartValidation.ts",
     "./CatalogFilters": "./src/components/shop/CatalogFilters.tsx",
     "./MobileFilterDrawer": "./src/components/shop/MobileFilterDrawer.tsx",
     "./ProductGallery": "./src/components/shop/ProductGallery.tsx",

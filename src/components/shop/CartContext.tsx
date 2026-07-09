@@ -20,6 +20,7 @@ interface CartContextType {
   items: CartItem[]
   count: number
   total: number
+  removedOnLoad: number
   addItem: (item: CartItem) => void
   removeItem: (variantId: string) => void
   updateQuantity: (variantId: string, qty: number) => void
@@ -30,6 +31,7 @@ const CartContext = createContext<CartContextType | null>(null)
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
+  const [removedOnLoad, setRemovedOnLoad] = useState(0)
 
   // Cargar desde localStorage al iniciar
   useEffect(() => {
@@ -39,6 +41,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(saved) as CartItem[]
         // Filtrar items inválidos (sin precio, sin stock, o sin cantidad)
         const valid = parsed.filter(i => i.price > 0 && i.quantity > 0 && i.stock > 0)
+        setRemovedOnLoad(parsed.length - valid.length)
         setItems(valid)
       }
     } catch {}
@@ -84,4 +87,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const count = items.reduce((acc, i) => acc + i.quantity, 0)
   const total = items.reduce((acc, i) => acc + i.price * i.quantity, 0)
-
+
+  return (
+    <CartContext.Provider value={{ items, count, total, removedOnLoad, addItem, removeItem, updateQuantity, clearCart }}>
+      {children}
+    </CartContext.Provider>
+  )
+}
+
+export function useCart() {
+  const ctx = useContext(CartContext)
+  if (!ctx) throw new Error('useCart debe usarse dentro de CartProvider')
+  return ctx
+}
