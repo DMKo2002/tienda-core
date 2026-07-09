@@ -345,6 +345,66 @@ export function emailPedidoEnviado({
 </html>`
 }
 
+// ── Email confirmación de registro ──────────────────────────────────────────
+
+export function emailConfirmacionRegistro({
+  storeName,
+  firstName,
+  confirmationUrl,
+  storeUrl,
+}: {
+  storeName: string
+  firstName: string
+  confirmationUrl: string
+  storeUrl: string
+}) {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Georgia,serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 16px;">
+<table width="100%" style="max-width:520px;background:#fff;border-radius:2px;overflow:hidden;">
+
+  <!-- Header -->
+  <tr><td style="background:#1a1a1a;padding:36px 40px 32px;text-align:center;">
+    <p style="margin:0;color:#fff;font-size:22px;font-weight:300;letter-spacing:0.25em;text-transform:uppercase;">${storeName}</p>
+  </td></tr>
+
+  <!-- Body -->
+  <tr><td style="padding:40px 40px 32px;">
+    <p style="margin:0 0 20px;font-size:13px;color:#999;letter-spacing:0.15em;text-transform:uppercase;">Confirmá tu cuenta</p>
+    <h1 style="margin:0 0 16px;font-size:28px;font-weight:300;color:#1a1a1a;line-height:1.3;">Hola, ${firstName}</h1>
+    <p style="margin:0 0 28px;font-size:15px;color:#555;line-height:1.7;">
+      Gracias por registrarte en <strong>${storeName}</strong>. Para activar tu cuenta y empezar a comprar, confirmá tu dirección de email:
+    </p>
+    <table cellpadding="0" cellspacing="0"><tr>
+      <td style="background:#1a1a1a;border-radius:2px;">
+        <a href="${confirmationUrl}" style="display:block;padding:14px 32px;color:#fff;text-decoration:none;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;">
+          Confirmar mi cuenta
+        </a>
+      </td>
+    </tr></table>
+    <p style="margin:28px 0 0;font-size:12px;color:#bbb;line-height:1.6;">
+      Si no creaste esta cuenta, podés ignorar este email.<br>El link es válido por 24 horas.
+    </p>
+  </td></tr>
+
+  <!-- Divider -->
+  <tr><td style="padding:0 40px;"><div style="border-top:1px solid #f0f0f0;"></div></td></tr>
+
+  <!-- Footer -->
+  <tr><td style="padding:24px 40px;text-align:center;">
+    <p style="margin:0;font-size:12px;color:#bbb;letter-spacing:0.1em;">
+      © ${storeName} · <a href="${storeUrl}" style="color:#bbb;text-decoration:underline;">${storeUrl.replace(/^https?:\/\//, '')}</a>
+    </p>
+  </td></tr>
+
+</table>
+</td></tr></table>
+</body>
+</html>`
+}
+
 // ── Email de bienvenida al cliente ───────────────────────────────────────────
 
 export function emailBienvenidaCliente({

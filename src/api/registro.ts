@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabase, createServiceSupabase, TENANT_ID } from '../lib/supabase-server'
-import { sendEmail, emailBienvenidaCliente } from '../lib/email'
+import { sendEmail, emailBienvenidaCliente, emailConfirmacionRegistro } from '../lib/email'
 
 async function verifyTurnstile(token: string): Promise<boolean> {
   const secret = process.env.TURNSTILE_SECRET_KEY
@@ -31,53 +31,57 @@ export async function POST(req: NextRequest) {
     if (!await verifyTurnstile(turnstileToken))
       return NextResponse.json({ error: 'Verificación de seguridad fallida. Intentá de nuevo.' }, { status: 400 })
 
-    const supabase = await createServerSupabase()  // solo para auth (signUp/signIn)
-    const service = createServiceSupabase()         // para DB: bypasea RLS
+    const supabase = await createServerSupabase()  // para signIn (usuario existente)
+    const service = createServiceSupabase()         // para DB + admin auth
     const tenantId = TENANT_ID()
     console.log(`[registro] inicio — email=${email}, tipo=${tipo}, tenantId=${tenantId}`)
 
     const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? `https://${req.headers.get('host')}`
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email, password,
+
+    // Usar admin.generateLink en lugar de signUp:
+    // - Crea el usuario sin que Supabase envíe su propio email de confirmación
+    // - Devuelve el link de confirmación para que lo mandemos nosotros con branding de la tienda
+    const { data: linkData, error: linkError } = await service.auth.admin.generateLink({
+      type: 'signup',
+      email,
+      password,
       options: {
+        redirectTo: `${siteUrl}/auth/callback`,
         data: { full_name: `${nombre} ${apellido ?? ''}`.trim(), tipo },
-        emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     })
-    console.log(`[registro] signUp → user=${authData?.user?.id ?? 'null'}, session=${!!authData?.session}, error=${authError?.message ?? 'none'}`)
+    console.log(`[registro] generateLink → user=${linkData?.user?.id ?? 'null'}, error=${linkError?.message ?? 'none'}`)
 
     let userId: string
+    let confirmationUrl: string | undefined
+    let needsConfirmation = true
 
-    if (authError?.message.includes('already registered')) {
-      // Email confirmation OFF: Supabase retorna error explícito
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-      if (signInError || !signInData.user)
-        return NextResponse.json(
-          { error: 'Ya existe una cuenta con ese email. Si ya compraste en otra tienda gounuri, usá la misma contraseña — o iniciá sesión.' },
-          { status: 409 }
-        )
-      userId = signInData.user.id
-      const { data: existing } = await service.from('customers').select('id').eq('id', userId).eq('tenant_id', tenantId).maybeSingle()
-      if (existing)
-        return NextResponse.json({ error: 'Ya tenés una cuenta en esta tienda. Iniciá sesión.' }, { status: 409 })
-    } else if (authError) {
-      return NextResponse.json({ error: authError.message }, { status: 400 })
-    } else if (!authData.user) {
-      // Email confirmation ON + email ya existía: Supabase retorna user=null sin error
-      // (email enumeration protection). Buscar customer existente por email.
-      const { data: existingCust } = await service.from('customers').select('id').eq('email', email).eq('tenant_id', tenantId).limit(1)
-      console.log(`[registro] user=null (email ya existía), customer existente=${existingCust?.length ?? 0}`)
-      if (existingCust && existingCust.length > 0) {
-        return NextResponse.json({ error: 'Ya tenés una cuenta en esta tienda. Revisá tu email para confirmarla o iniciá sesión.' }, { status: 409 })
+    if (linkError) {
+      const msg = linkError.message ?? ''
+      if (msg.includes('already registered') || msg.includes('email_exists') || msg.includes('already been registered')) {
+        // Usuario confirmado ya existe → intentar login para vincular al tenant
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+        if (signInError || !signInData.user)
+          return NextResponse.json(
+            { error: 'Ya existe una cuenta con ese email. Si ya compraste en otra tienda gounuri, usá la misma contraseña — o iniciá sesión.' },
+            { status: 409 }
+          )
+        userId = signInData.user.id
+        needsConfirmation = false
+        const { data: existing } = await service.from('customers').select('id').eq('id', userId).eq('tenant_id', tenantId).maybeSingle()
+        if (existing)
+          return NextResponse.json({ error: 'Ya tenés una cuenta en esta tienda. Iniciá sesión.' }, { status: 409 })
+      } else {
+        return NextResponse.json({ error: linkError.message }, { status: 400 })
       }
-      // El auth user existe pero el customer no — buscar userId via admin
-      const { data: { users: adminUsers } } = await service.auth.admin.listUsers({ page: 1, perPage: 1000 })
-      const existingAuthUser = adminUsers?.find((u: any) => u.email === email)
-      if (!existingAuthUser) return NextResponse.json({ error: 'Error al procesar el registro. Intentá de nuevo.' }, { status: 500 })
-      userId = existingAuthUser.id
-      console.log(`[registro] auth user encontrado via admin: ${userId}`)
+    } else if (!linkData?.user) {
+      return NextResponse.json({ error: 'Error al crear la cuenta. Intentá de nuevo.' }, { status: 500 })
     } else {
-      userId = authData.user.id
+      userId = linkData.user.id
+      confirmationUrl = linkData.properties?.action_link
+      // Si el usuario ya estaba confirmado (email_confirm desactivado en Supabase),
+      // action_link puede venir vacío — en ese caso no hay confirmación pendiente
+      needsConfirmation = !!confirmationUrl && !linkData.user.email_confirmed_at
     }
 
     // Verificar si ya existe un customer con este email (importado de WooCommerce u otra tienda)
@@ -90,7 +94,6 @@ export async function POST(req: NextRequest) {
 
     if (existingByEmail && existingByEmail.length > 0) {
       // Existe un customer (importado u otro) → actualizar tipo y datos SIN tocar el id
-      // No cambiamos el id para evitar FK constraint violation (orders.customer_id → customers.id)
       const { error: updateErr } = await service.from('customers').update({
         full_name: nombre,
         last_name: apellido ?? null,
@@ -104,7 +107,6 @@ export async function POST(req: NextRequest) {
       }).eq('id', existingByEmail[0].id).eq('tenant_id', tenantId)
       if (updateErr) console.error('[registro] error actualizando customer existente:', updateErr.message)
     } else {
-      // No existe → insertar nuevo (service client bypasea RLS del INSERT)
       const { error: insertErr } = await service.from('customers').insert({
         id: userId, tenant_id: tenantId, email,
         full_name: nombre, last_name: apellido ?? null,
@@ -119,21 +121,36 @@ export async function POST(req: NextRequest) {
       else console.log(`[registro] customer insertado OK — id=${userId}, tipo=${tipo}`)
     }
 
-    // Email de bienvenida
+    // Datos del tenant para el email
     const [{ data: tenant }, { data: emailConfig }] = await Promise.all([
-      supabase.from('tenants').select('name').eq('id', tenantId).single(),
-      supabase.from('store_configs').select('email_from_name, reply_to').eq('tenant_id', tenantId).single(),
+      service.from('tenants').select('name').eq('id', tenantId).single(),
+      service.from('store_configs').select('email_from_name, reply_to').eq('tenant_id', tenantId).single(),
     ])
     const storeName = tenant?.name ?? 'Tienda'
-    const needsConfirmation = !authData?.session
-    const emailResult = await sendEmail({
-      to: email,
-      subject: `Bienvenido/a a ${storeName}`,
-      html: emailBienvenidaCliente({ storeName, firstName: nombre, storeUrl: siteUrl }),
+    const emailOpts = {
       fromName: emailConfig?.email_from_name ?? storeName,
       ...(emailConfig?.reply_to ? { replyTo: emailConfig.reply_to } : {}),
-    }).catch(e => { console.error('[email bienvenida] fetch error:', e); return { ok: false } })
-    console.log(`[registro] email bienvenida a ${email}: ${emailResult.ok ? 'ENVIADO OK' : 'FALLO'}, confirmacion auth: ${needsConfirmation}`)
+    }
+
+    if (needsConfirmation && confirmationUrl) {
+      // Enviar email de confirmación con branding de la tienda (en lugar del email genérico de Supabase)
+      const emailResult = await sendEmail({
+        to: email,
+        subject: `Confirmá tu cuenta en ${storeName}`,
+        html: emailConfirmacionRegistro({ storeName, firstName: nombre, confirmationUrl, storeUrl: siteUrl }),
+        ...emailOpts,
+      }).catch(e => { console.error('[email confirmacion] error:', e); return { ok: false } })
+      console.log(`[registro] email confirmacion a ${email}: ${emailResult.ok ? 'ENVIADO OK' : 'FALLO'}`)
+    } else {
+      // Usuario ya confirmado (email_confirm desactivado) → enviar bienvenida directamente
+      const emailResult = await sendEmail({
+        to: email,
+        subject: `Bienvenido/a a ${storeName}`,
+        html: emailBienvenidaCliente({ storeName, firstName: nombre, storeUrl: siteUrl }),
+        ...emailOpts,
+      }).catch(e => { console.error('[email bienvenida] error:', e); return { ok: false } })
+      console.log(`[registro] email bienvenida a ${email}: ${emailResult.ok ? 'ENVIADO OK' : 'FALLO'}`)
+    }
 
     return NextResponse.json({ ok: true, confirmacion: needsConfirmation })
   } catch (err: any) {
