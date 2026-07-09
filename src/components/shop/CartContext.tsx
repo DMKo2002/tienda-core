@@ -9,6 +9,7 @@ export interface CartItem {
   variantDesc: string
   size: string
   color: string
+  colorHex?: string
   price: number
   priceType: 'retail' | 'wholesale'
   imageUrl: string | null

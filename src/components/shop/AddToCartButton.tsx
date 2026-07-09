@@ -125,6 +125,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
       variantDesc: [selectedSize, selectedColor].filter(Boolean).join(' / '),
       size: selectedSize ?? '',
       color: selectedColor ?? '',
+      colorHex: selectedColor ? getColorHex(selectedColor) : undefined,
       price: effectivePrice,
       priceType,
       imageUrl: product.coverUrl,
