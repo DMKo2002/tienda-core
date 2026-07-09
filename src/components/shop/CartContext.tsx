@@ -35,7 +35,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const saved = localStorage.getItem('cart')
-      if (saved) setItems(JSON.parse(saved))
+      if (saved) {
+        const parsed = JSON.parse(saved) as CartItem[]
+        // Filtrar items inválidos (sin precio, sin stock, o sin cantidad)
+        const valid = parsed.filter(i => i.price > 0 && i.quantity > 0 && i.stock > 0)
+        setItems(valid)
+      }
     } catch {}
   }, [])
 
@@ -47,6 +52,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items])
 
   const addItem = useCallback((newItem: CartItem) => {
+    // Nunca agregar items sin precio o sin stock
+    if (newItem.price <= 0 || newItem.stock <= 0) return
     setItems(prev => {
       const existing = prev.find(i => i.variantId === newItem.variantId)
       if (existing) {
@@ -77,16 +84,4 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const count = items.reduce((acc, i) => acc + i.quantity, 0)
   const total = items.reduce((acc, i) => acc + i.price * i.quantity, 0)
-
-  return (
-    <CartContext.Provider value={{ items, count, total, addItem, removeItem, updateQuantity, clearCart }}>
-      {children}
-    </CartContext.Provider>
-  )
-}
-
-export function useCart() {
-  const ctx = useContext(CartContext)
-  if (!ctx) throw new Error('useCart debe usarse dentro de CartProvider')
-  return ctx
-}
+

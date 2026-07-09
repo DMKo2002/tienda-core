@@ -240,32 +240,25 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
         )}
       </div>
 
-      {selectedVariant && !inStock && (
+      {selectedVariant && !inStock && !ignoreStock && (
         <p className="text-xs text-red-400 tracking-wide">Sin stock disponible para esta variante</p>
       )}
 
-      <button
-        onClick={handleAddToCart}
-        disabled={!selectedVariant || !inStock || !effectivePrice}
-        className={`w-full py-4 text-xs tracking-[0.2em] uppercase font-medium transition-all duration-300 flex items-center justify-center gap-3 ${
-          added
-            ? 'bg-[var(--color-stone)] text-white'
-            : 'bg-[var(--color-charcoal)] text-white hover:bg-[var(--color-stone)] disabled:opacity-40 disabled:cursor-not-allowed'
-        }`}
-      >
-        {added ? (
-          <>
-            <Check size={16} strokeWidth={1.5} />
-            Agregado al carrito
-          </>
-        ) : (
-          <>
-            <ShoppingBag size={16} strokeWidth={1.5} />
-            {showPrices && effectivePrice ? `Agregar al carrito - ${formatPrice(effectivePrice * quantity)}` : 'Agregar al carrito'}
-          </>
-        )}
-      </button>
-
-    </div>
-  )
-}
+      {!inStock && !ignoreStock ? (
+        <div className="w-full py-4 text-xs tracking-[0.2em] uppercase font-medium flex items-center justify-center gap-3 bg-[var(--color-border)] text-[var(--color-stone)] cursor-not-allowed select-none">
+          Sin stock
+        </div>
+      ) : (
+        <button
+          onClick={handleAddToCart}
+          disabled={!selectedVariant || !effectivePrice}
+          className={`w-full py-4 text-xs tracking-[0.2em] uppercase font-medium transition-all duration-300 flex items-center justify-center gap-3 ${
+            added
+              ? 'bg-[var(--color-stone)] text-white'
+              : 'bg-[var(--color-charcoal)] text-white hover:bg-[var(--color-stone)] disabled:opacity-40 disabled:cursor-not-allowed'
+          }`}
+        >
+          {added ? (
+            <>
+              <Check size={16} strokeWidth={1.5} />
+            
