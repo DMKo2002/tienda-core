@@ -199,8 +199,10 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
   const selectedMethodIdx = shippingMethod.startsWith('custom_') ? Number(shippingMethod.split('_')[1]) : -1
   const selectedMethod = selectedMethodIdx >= 0 ? activeCustomMethods[selectedMethodIdx] : null
 
-  // Hide address for pickup-type methods (name contains "retiro")
-  const isPickup = selectedMethod?.name?.toLowerCase().includes('retiro')
+  // Nota: la direccion/localidad/provincia se piden SIEMPRE, sin excepcion
+  // por metodo de envio (incluido "retiro en local"), porque muchos mayoristas
+  // despachan por expreso fuera del sistema y necesitan estos datos igual
+  // para imprimir la etiqueta e imputar el envio.
 
   const totalConEnvio = total + shippingCost
   const minOrder: number | null = storeConfig?.min_order_amount ?? null
@@ -217,13 +219,11 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
     if (!email.trim()) { setError('El email es obligatorio'); return }
     if (!phone.trim()) { setError('El teléfono es obligatorio'); return }
     if (!cuil.trim()) { setError('El CUIL/CUIT es obligatorio'); return }
-    if (!isPickup) {
-      if (!addressStreet.trim()) { setError('La dirección es obligatoria'); return }
-      if (!addressCity.trim()) { setError('La localidad es obligatoria'); return }
-      if (!addressProvince.trim()) { setError('La provincia es obligatoria'); return }
-      if (!addressZip.trim()) { setError('El código postal es obligatorio'); return }
-      if (!country.trim()) { setError('El país es obligatorio'); return }
-    }
+    if (!addressStreet.trim()) { setError('La dirección es obligatoria'); return }
+    if (!addressCity.trim()) { setError('La localidad es obligatoria'); return }
+    if (!addressProvince.trim()) { setError('La provincia es obligatoria'); return }
+    if (!addressZip.trim()) { setError('El código postal es obligatorio'); return }
+    if (!country.trim()) { setError('El país es obligatorio'); return }
     setError(null)
     setStep('pago')
   }
@@ -527,42 +527,41 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                     </div>
                   )}
 
-                  {/* Dirección de envío — SIEMPRE visible salvo método "retiro en local".
+                  {/* Dirección de envío — SIEMPRE visible y obligatoria, sin excepcion
+                      por metodo de envio elegido (incluido "retiro en local").
                       No depende de si el tenant configuró métodos de envío propios:
                       muchos mayoristas despachan con expreso y no cargan nada acá,
                       pero igual necesitan estos datos para imprimir la etiqueta. */}
-                  {!isPickup && (
-                    <div className="space-y-4 pt-2">
-                      <p className="text-xs tracking-[0.2em] uppercase text-[var(--color-stone)]">Dirección de envío</p>
+                  <div className="space-y-4 pt-2">
+                    <p className="text-xs tracking-[0.2em] uppercase text-[var(--color-stone)]">Dirección de envío</p>
+                    <div>
+                      <label className={labelClass}>Calle y número *</label>
+                      <input className={inputClass} value={addressStreet} onChange={e => setAddressStreet(e.target.value)} placeholder="Av. Corrientes 1234" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className={labelClass}>Calle y número *</label>
-                        <input className={inputClass} value={addressStreet} onChange={e => setAddressStreet(e.target.value)} placeholder="Av. Corrientes 1234" />
+                        <label className={labelClass}>Provincia *</label>
+                        <select className={inputClass} value={addressProvince} onChange={e => setAddressProvince(e.target.value)}>
+                          <option value="">Seleccioná una provincia</option>
+                          {PROVINCIAS.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className={labelClass}>Provincia *</label>
-                          <select className={inputClass} value={addressProvince} onChange={e => setAddressProvince(e.target.value)}>
-                            <option value="">Seleccioná una provincia</option>
-                            {PROVINCIAS.map(p => <option key={p} value={p}>{p}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className={labelClass}>Localidad *</label>
-                          <LocalidadAutocomplete value={addressCity} provincia={addressProvince} onChange={setAddressCity} inputClass={inputClass} />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className={labelClass}>Código postal *</label>
-                          <input className={inputClass} value={addressZip} onChange={e => setAddressZip(e.target.value)} placeholder="1000" />
-                        </div>
-                        <div>
-                          <label className={labelClass}>País *</label>
-                          <input className={inputClass} value={country} onChange={e => setCountry(e.target.value)} placeholder="Argentina" />
-                        </div>
+                      <div>
+                        <label className={labelClass}>Localidad *</label>
+                        <LocalidadAutocomplete value={addressCity} provincia={addressProvince} onChange={setAddressCity} inputClass={inputClass} />
                       </div>
                     </div>
-                  )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelClass}>Código postal *</label>
+                        <input className={inputClass} value={addressZip} onChange={e => setAddressZip(e.target.value)} placeholder="1000" />
+                      </div>
+                      <div>
+                        <label className={labelClass}>País *</label>
+                        <input className={inputClass} value={country} onChange={e => setCountry(e.target.value)} placeholder="Argentina" />
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Notas */}
                   <div>
