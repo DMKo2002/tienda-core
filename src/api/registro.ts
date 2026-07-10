@@ -37,7 +37,10 @@ export async function POST(req: NextRequest) {
     const tenantId = TENANT_ID()
     console.log(`[registro] inicio — email=${email}, tipo=${tipo}, tenantId=${tenantId}`)
 
-    const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? `https://${req.headers.get('host')}`
+    // En multi-tenant usamos el host del request para que cada tienda apunte a su propio dominio.
+    // NEXT_PUBLIC_APP_URL se ignora acá porque es build-time y sería el mismo para todos los tenants.
+    const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
+    const siteUrl = host ? `https://${host}` : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000')
 
     // Usar admin.generateLink en lugar de signUp:
     // - Crea el usuario sin que Supabase envíe su propio email de confirmación

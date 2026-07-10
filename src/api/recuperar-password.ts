@@ -9,7 +9,8 @@ export async function POST(req: NextRequest) {
 
     const service = createServiceSupabase()
     const tenantId = TENANT_ID()
-    const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? `https://${req.headers.get('host')}`
+    const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
+    const siteUrl = host ? `https://${host}` : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000')
 
     // Verificar que el email pertenece a un customer de este tenant
     const { data: customer } = await service
