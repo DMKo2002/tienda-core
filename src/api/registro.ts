@@ -82,9 +82,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Error al crear la cuenta. Intentá de nuevo.' }, { status: 500 })
     } else {
       userId = linkData.user.id
-      confirmationUrl = linkData.properties?.action_link
+      // Usar hashed_token para construir nuestra propia URL de verificación.
+      // action_link redirige a través de Supabase y llega con tokens en el hash URL
+      // que los server route handlers no pueden leer. Con hashed_token + verifyOtp()
+      // todo sucede server-side sin hash fragments.
+      const hashedToken = linkData.properties?.hashed_token
+      if (hashedToken) {
+        confirmationUrl = `${siteUrl}/auth/verificar?token_hash=${encodeURIComponent(hashedToken)}&type=signup`
+      } else {
+        // Fallback: si por alguna razón no hay hashed_token, usar action_link
+        confirmationUrl = linkData.properties?.action_link
+      }
       // Si el usuario ya estaba confirmado (email_confirm desactivado en Supabase),
-      // action_link puede venir vacío — en ese caso no hay confirmación pendiente
+      // no hay confirmación pendiente
       needsConfirmation = !!confirmationUrl && !linkData.user.email_confirmed_at
     }
 

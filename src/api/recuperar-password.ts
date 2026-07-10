@@ -38,12 +38,17 @@ export async function POST(req: NextRequest) {
     })
     console.log('[recuperar] generateLink result:', !!linkData?.properties?.action_link, 'err:', linkError?.message)
 
-    if (linkError || !linkData?.properties?.action_link) {
+    if (linkError || !linkData?.properties) {
       console.error('[recuperar] generateLink error:', linkError?.message)
       return NextResponse.json({ ok: true }) // no revelar si el usuario existe
     }
 
-    const recoveryUrl = linkData.properties.action_link
+    // Usar hashed_token para construir nuestra propia URL de verificación
+    // (evita el problema de hash URL con action_link de Supabase)
+    const hashedToken = linkData.properties.hashed_token
+    const recoveryUrl = hashedToken
+      ? `${siteUrl}/auth/verificar?token_hash=${encodeURIComponent(hashedToken)}&type=recovery&next=${encodeURIComponent('/cuenta/recuperar/confirmar')}`
+      : linkData.properties.action_link ?? siteUrl
     const firstName = customer[0].full_name?.split(' ')[0] ?? 'Hola'
 
     // Datos de la tienda para el email
