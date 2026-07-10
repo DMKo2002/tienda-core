@@ -24,7 +24,9 @@
     "./api/mp-preferencia": "./src/api/mp-preferencia.ts",
     "./api/auth-callback": "./src/api/auth-callback.ts",
     "./api/recuperar-password": "./src/api/recuperar-password.ts",
-    "./api/auth-verificar": "./src/api/auth-verificar.ts"
+    "./api/auth-verificar": "./src/api/auth-verificar.ts",
+    "./CarritoPage": "./src/components/shop/CarritoPage.tsx",
+    "./CheckoutPage": "./src/components/shop/CheckoutPage.tsx"
   },
   "peerDependencies": {
     "next": ">=14.0.0",
