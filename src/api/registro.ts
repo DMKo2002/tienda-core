@@ -11,6 +11,7 @@ async function verifyTurnstile(token: string): Promise<boolean> {
     body: new URLSearchParams({ secret, response: token }),
   })
   const data = await res.json()
+  console.log('[turnstile] verify result:', JSON.stringify(data))
   return data.success === true
 }
 
