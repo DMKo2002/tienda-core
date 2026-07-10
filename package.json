@@ -22,7 +22,8 @@
     "./api/crear-pedido": "./src/api/crear-pedido.ts",
     "./api/nav-categories": "./src/api/nav-categories.ts",
     "./api/mp-preferencia": "./src/api/mp-preferencia.ts",
-    "./api/auth-callback": "./src/api/auth-callback.ts"
+    "./api/auth-callback": "./src/api/auth-callback.ts",
+    "./api/recuperar-password": "./src/api/recuperar-password.ts"
   },
   "peerDependencies": {
     "next": ">=14.0.0",
