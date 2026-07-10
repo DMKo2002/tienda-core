@@ -29,6 +29,12 @@ interface AddToCartButtonProps {
 const formatPrice = (n: number) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 
+// Stock "infinito" para productos con ignoreStock activo (el tenant no controla
+// stock por unidad — ej: mayoristas que fabrican a pedido). Se usa un número
+// grande en vez de Infinity porque Infinity no sobrevive JSON.stringify
+// (se convierte en null) y el carrito persiste en localStorage.
+const UNLIMITED_STOCK = 999999
+
 const COLOR_MAP: Record<string, string> = {
   negro: '#1C1C1C', blanco: '#F5F5F0', crema: '#F0EBE1', beige: '#D4C5A9',
   marfil: '#FFFFF0', gris: '#9E9E9E', 'gris claro': '#D0D0D0', 'gris oscuro': '#555555',
@@ -116,6 +122,11 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
         return
       }
     }
+    // Si el tenant ignora stock, el carrito no debe heredar el stock real
+    // (puede ser 0 para productos hechos a pedido) — CartContext descarta
+    // silenciosamente cualquier ítem con stock <= 0, lo que hacía que
+    // "Agregar al carrito" no hiciera nada para estos productos.
+    const cartStock = ignoreStock ? UNLIMITED_STOCK : maxStock
     addItem({
       // Clave compuesta para que distintos color/talle sean items separados en el carrito
       // incluso si comparten el mismo ID de variante en la DB (ej: productos WooCommerce)
@@ -130,7 +141,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
       priceType,
       imageUrl: product.coverUrl,
       quantity,
-      stock: maxStock,
+      stock: cartStock,
     })
     setAdded(true)
     setStockError(null)
