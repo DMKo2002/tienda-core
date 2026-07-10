@@ -4,6 +4,13 @@ import { createServerSupabase, TENANT_ID } from '../lib/supabase-server'
 import { sendEmail, emailConfirmacionCliente, emailNotificacionDueno } from '../lib/email'
 import { checkoutLimiter } from '../lib/ratelimit'
 
+// El variantId en el carrito es una clave compuesta "uuid__talle__color"
+// para distinguir misma variante en distintos colores/talles.
+// En la DB siempre usamos solo el UUID real (parte antes del primer "__").
+function realVariantId(compositeId: string): string {
+  return compositeId.split('__')[0]
+}
+
 // Service role bypasa RLS — solo para operaciones server-side
 function createServiceClient() {
   return createClient(
@@ -61,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 3. Validar precios desde DB (ignorar precio enviado por el cliente) ───
-    const variantIds = (items as any[]).map((i: any) => i.variantId).filter(Boolean)
+    const variantIds = (items as any[]).map((i: any) => realVariantId(i.variantId)).filter(Boolean)
 
     if (variantIds.length === 0) {
       return NextResponse.json({ error: 'No se recibieron variantes válidas' }, { status: 400 })
@@ -76,7 +83,8 @@ export async function POST(req: NextRequest) {
     if (priceErr) throw priceErr
 
     const validatedItems = (items as any[]).map((item: any) => {
-      const rules = (priceRulesData ?? []).filter((r: any) => r.variant_id === item.variantId)
+      const vid = realVariantId(item.variantId)
+      const rules = (priceRulesData ?? []).filter((r: any) => r.variant_id === vid)
       const retailRule = rules.find((r: any) => r.type === 'retail')
       const wholesaleRule = rules.find((r: any) => r.type === 'wholesale')
 
@@ -107,7 +115,7 @@ export async function POST(req: NextRequest) {
       }
 
       return {
-        variantId: item.variantId,
+        variantId: vid,  // UUID real, sin el composite key
         productName: String(item.productName ?? 'Producto'),
         variantDesc: item.variantDesc ?? null,
         quantity: qty,
