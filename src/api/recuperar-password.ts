@@ -9,16 +9,18 @@ export async function POST(req: NextRequest) {
 
     const service = createServiceSupabase()
     const tenantId = TENANT_ID()
+    console.log('[recuperar] tenantId:', tenantId, 'email:', email)
     const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
     const siteUrl = host ? `https://${host}` : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000')
 
     // Verificar que el email pertenece a un customer de este tenant
-    const { data: customer } = await service
+    const { data: customer, error: customerErr } = await service
       .from('customers')
       .select('id, full_name')
       .eq('tenant_id', tenantId)
       .eq('email', email.trim())
       .limit(1)
+    console.log('[recuperar] customer lookup:', customer?.length, 'err:', customerErr?.message)
 
     // Por seguridad, siempre respondemos OK aunque el email no exista
     if (!customer || customer.length === 0) {
@@ -26,6 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Generar link de recuperación via admin API
+    console.log('[recuperar] calling generateLink...')
     const { data: linkData, error: linkError } = await service.auth.admin.generateLink({
       type: 'recovery',
       email: email.trim(),
@@ -33,6 +36,7 @@ export async function POST(req: NextRequest) {
         redirectTo: `${siteUrl}/auth/callback?next=/cuenta/recuperar/confirmar`,
       },
     })
+    console.log('[recuperar] generateLink result:', !!linkData?.properties?.action_link, 'err:', linkError?.message)
 
     if (linkError || !linkData?.properties?.action_link) {
       console.error('[recuperar] generateLink error:', linkError?.message)
@@ -48,6 +52,7 @@ export async function POST(req: NextRequest) {
       service.from('store_configs').select('email_from_name, reply_to').eq('tenant_id', tenantId).single(),
     ])
     const storeName = tenant?.name ?? 'Tienda'
+    console.log('[recuperar] storeName:', storeName, 'sendEmail a:', email)
     const emailOpts = {
       fromName: emailConfig?.email_from_name ?? storeName,
       ...(emailConfig?.reply_to ? { replyTo: emailConfig.reply_to } : {}),
@@ -62,7 +67,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true })
   } catch (err: any) {
-    console.error('[recuperar] error:', err)
+    console.error('[recuperar] error:', err?.message ?? err, JSON.stringify(err))
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
   }
 }
