@@ -34,7 +34,11 @@ export async function POST(req: NextRequest) {
     const client = new MercadoPagoConfig({ accessToken })
     const preference = new Preference(client)
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+    // En multi-tenant usamos el host del request para que cada tienda vuelva a su propio
+    // dominio después de pagar. NEXT_PUBLIC_APP_URL es build-time y sería el mismo para
+    // todos los tenants (mismo bug que tenía el sitemap — ver crear-pedido.ts / registro.ts).
+    const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
+    const baseUrl = host ? `https://${host}` : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000')
     const isProduction = baseUrl.startsWith('https')
 
     const result = await preference.create({
