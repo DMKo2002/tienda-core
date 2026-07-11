@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
     // Datos del tenant para el email
     const [{ data: tenant }, { data: emailConfig }] = await Promise.all([
       service.from('tenants').select('name').eq('id', tenantId).single(),
-      service.from('store_configs').select('email_from_name, reply_to').eq('tenant_id', tenantId).single(),
+      service.from('store_config').select('email_from_name, reply_to').eq('tenant_id', tenantId).single(),
     ])
     const storeName = tenant?.name ?? 'Tienda'
     const emailOpts = {
