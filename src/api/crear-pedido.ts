@@ -68,10 +68,35 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 3. Validar precios desde DB (ignorar precio enviado por el cliente) ───
-    const variantIds = (items as any[]).map((i: any) => realVariantId(i.variantId)).filter(Boolean)
+    const rawVariantIds = (items as any[]).map((i: any) => realVariantId(i.variantId)).filter(Boolean)
 
-    if (variantIds.length === 0) {
+    if (rawVariantIds.length === 0) {
       return NextResponse.json({ error: 'No se recibieron variantes válidas' }, { status: 400 })
+    }
+
+    // Verificar que las variantes pedidas pertenecen a ESTE tenant. supabase acá
+    // es el service client (bypasea RLS), así que sin este chequeo un request
+    // armado a mano con variant_id de otro tenant traería sus price_rules y
+    // crearía un pedido válido con precio/producto de otra tienda.
+    const { data: variantRows } = await supabase
+      .from('variants')
+      .select('id, product_id')
+      .in('id', rawVariantIds)
+
+    const productIdsToCheck = [...new Set((variantRows ?? []).map((v: any) => v.product_id))]
+    const { data: ownedProducts } = await supabase
+      .from('products')
+      .select('id')
+      .in('id', productIdsToCheck)
+      .eq('tenant_id', TENANT_ID())
+
+    const ownedProductIds = new Set((ownedProducts ?? []).map((p: any) => p.id))
+    const variantIds = (variantRows ?? [])
+      .filter((v: any) => ownedProductIds.has(v.product_id))
+      .map((v: any) => v.id)
+
+    if (variantIds.length !== rawVariantIds.length) {
+      return NextResponse.json({ error: 'Uno o más productos no pertenecen a esta tienda' }, { status: 400 })
     }
 
     const { data: priceRulesData, error: priceErr } = await supabase

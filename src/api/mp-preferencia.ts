@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
-import { createServerSupabase, TENANT_ID } from '../lib/supabase-server'
+import { TENANT_ID, createServiceSupabase } from '../lib/supabase-server'
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,8 +11,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Items requeridos' }, { status: 400 })
     }
 
-    // Obtener access token del tenant desde store_config
-    const supabase = await createServerSupabase()
+    // IMPORTANTE: mp_access_token es una columna sensible. Se lee con el
+    // service client (bypasea RLS) en vez del cliente anon — la política de
+    // store_config es pública (USING true) para que la tienda pueda leer
+    // colores/logo/etc sin login, pero eso significa que CUALQUIERA con la
+    // anon key podría pedir mp_access_token de OTRO tenant vía la API REST
+    // de Supabase directamente. Usando el service client acá, evitamos que
+    // el checkout dependa de que anon tenga permiso de leer esa columna, así
+    // se puede sacar ese permiso de anon a nivel de base de datos.
+    const supabase = createServiceSupabase()
     const { data: config } = await supabase
       .from('store_config')
       .select('mp_access_token, mp_enabled')
