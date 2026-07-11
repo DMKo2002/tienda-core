@@ -347,6 +347,73 @@ export function emailPedidoEnviado({
 </html>`
 }
 
+// ── Email pedido cancelado ───────────────────────────────────────────────────
+
+export function emailPedidoCancelado({
+  storeName,
+  orderId,
+  customerName,
+  wasPaid,
+  whatsapp,
+  contactEmail,
+  customIntro,
+}: {
+  storeName: string
+  orderId: string
+  customerName: string
+  wasPaid: boolean
+  whatsapp?: string | null
+  contactEmail?: string | null
+  customIntro?: string | null
+}): string {
+  const shortId = orderId.slice(0, 8).toUpperCase()
+  const defaultIntro = wasPaid
+    ? 'Tu pedido fue cancelado porque no pudimos confirmar el stock del producto. Ya recibimos tu pago, así que vamos a coordinar la devolución con vos.'
+    : 'Tu pedido fue cancelado porque no pudimos confirmar el stock del producto.'
+  const waLink = whatsapp ? `https://wa.me/${whatsapp.replace(/\D/g, '')}` : null
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f7f4f1;font-family:Georgia,'Times New Roman',serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4f1;padding:40px 16px;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fff;">
+
+  <tr><td style="background:#1c1c1c;padding:32px;text-align:center;">
+    <p style="margin:0;color:#fff;font-size:20px;letter-spacing:5px;font-weight:300;">${storeName.toUpperCase()}</p>
+  </td></tr>
+
+  <tr><td style="padding:40px 40px 32px;">
+    <p style="margin:0 0 6px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#aaa;">⚠️ Pedido cancelado</p>
+    <h1 style="margin:0 0 6px;font-size:28px;font-weight:300;color:#1c1c1c;">Tu pedido fue cancelado</h1>
+    <p style="margin:0 0 28px;font-size:13px;color:#aaa;letter-spacing:1px;">Pedido #${shortId} · ${customerName.split(' ')[0]}</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#555;line-height:1.7;">
+      ${customIntro ?? defaultIntro}
+    </p>
+    ${wasPaid ? `
+    <div style="background:#f7f4f1;padding:14px 18px;margin-bottom:20px;">
+      <p style="margin:0;font-size:13px;color:#555;line-height:1.6;">
+        Para coordinar la devolución de tu pago, escribinos${contactEmail ? ` por mail a <strong>${contactEmail}</strong>` : ''}${contactEmail && waLink ? ' o' : ''}${waLink ? ` por WhatsApp` : ''}.
+      </p>
+    </div>` : ''}
+    <div style="text-align:center;margin-top:8px;">
+      ${waLink ? `<a href="${waLink}" style="display:inline-block;background:#1c1c1c;color:#fff;text-decoration:none;padding:12px 28px;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin:0 6px 8px;">Escribinos por WhatsApp</a>` : ''}
+      ${contactEmail ? `<a href="mailto:${contactEmail}" style="display:inline-block;background:#fff;color:#1c1c1c;border:1px solid #1c1c1c;text-decoration:none;padding:12px 28px;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin:0 6px 8px;">Escribinos por mail</a>` : ''}
+    </div>
+  </td></tr>
+
+  <tr><td style="padding:24px;text-align:center;border-top:1px solid #ede8e3;">
+    <p style="margin:0;font-size:12px;color:#bbb;letter-spacing:1px;">${storeName.toUpperCase()} · DISCULPÁ LAS MOLESTIAS</p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+}
+
 // ── Email confirmación de registro ──────────────────────────────────────────
 
 export function emailConfirmacionRegistro({
