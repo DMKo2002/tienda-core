@@ -41,6 +41,14 @@ export async function POST(req: NextRequest) {
     const baseUrl = host ? `https://${host}` : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000')
     const isProduction = baseUrl.startsWith('https')
 
+    // IMPORTANTE: sin notification_url explícito, Mercado Pago solo avisa el pago
+    // si hay un webhook configurado a mano en el dashboard de developers de CADA
+    // cuenta de MP de cada tenant — paso manual, propenso a quedar sin hacer.
+    // Seteándolo acá, MP nos avisa siempre a Panel Admin con el tenant_id correcto,
+    // sin depender de configuración externa por tenant.
+    const panelUrl = process.env.NEXT_PUBLIC_PANEL_URL
+    const notificationUrl = panelUrl ? `${panelUrl}/api/mp/webhook?tenant_id=${TENANT_ID()}` : undefined
+
     const result = await preference.create({
       body: {
         items: items.map((item: any) => ({
@@ -64,10 +72,15 @@ export async function POST(req: NextRequest) {
           },
           auto_return: 'approved' as const,
         }),
+        ...(notificationUrl && { notification_url: notificationUrl }),
         external_reference: order_id,
         statement_descriptor: 'Tienda Online',
       },
     })
+
+    if (!notificationUrl) {
+      console.warn('NEXT_PUBLIC_PANEL_URL no está seteada — MP no tiene notification_url y depende de config manual en su dashboard.')
+    }
 
     return NextResponse.json({
       preference_id: result.id,
