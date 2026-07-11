@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     // ── 1. Fetch store config (envío + email notificación) ────────────────────
     const [{ data: storeConf }, { data: tenant }] = await Promise.all([
-      supabase.from('store_config').select('custom_shipping, notification_email, email_from_name, reply_to').eq('tenant_id', TENANT_ID()).single(),
+      supabase.from('store_config').select('custom_shipping, notification_email, email_from_name, reply_to, email_intro_pedido_recibido').eq('tenant_id', TENANT_ID()).single(),
       supabase.from('tenants').select('name').eq('id', TENANT_ID()).single(),
     ])
 
@@ -256,7 +256,10 @@ export async function POST(req: NextRequest) {
     sendEmail({
       to: email.trim(),
       subject: `Tu pedido #${order.id.slice(0, 8).toUpperCase()} fue recibido — ${storeName}`,
-      html: emailConfirmacionCliente(emailPayload),
+      html: emailConfirmacionCliente({
+        ...emailPayload,
+        customIntro: (storeConf as any)?.email_intro_pedido_recibido ?? null,
+      }),
       fromName: emailFromName,
       replyTo,
     }).then(({ ok }) => {

@@ -77,6 +77,7 @@ export function emailConfirmacionCliente({
   total,
   shippingLabel,
   paymentMethod,
+  customIntro,
 }: {
   storeName: string
   orderId: string
@@ -87,6 +88,7 @@ export function emailConfirmacionCliente({
   total: number
   shippingLabel: string
   paymentMethod: string
+  customIntro?: string | null
 }): string {
   const shortId = orderId.slice(0, 8).toUpperCase()
   const paymentLabel = paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Transferencia bancaria'
@@ -119,7 +121,7 @@ export function emailConfirmacionCliente({
     <h1 style="margin:0 0 6px;font-size:30px;font-weight:300;color:#1c1c1c;">Gracias, ${customerName.split(' ')[0]}.</h1>
     <p style="margin:0 0 28px;font-size:13px;color:#aaa;letter-spacing:1px;">Pedido #${shortId}</p>
     <p style="margin:0 0 32px;font-size:14px;color:#555;line-height:1.7;">
-      Recibimos tu pedido y lo estamos procesando.<br>Te vamos a contactar para confirmar.
+      ${customIntro ?? 'Recibimos tu pedido y lo estamos procesando.<br>Te vamos a contactar para confirmar.'}
     </p>
   </td></tr>
 
