@@ -120,6 +120,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null)
   const [orderTotal, setOrderTotal] = useState(0)
   const [emailLocked, setEmailLocked] = useState(false)
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false)
 
   const [nombre, setNombre] = useState('')
   const [apellido, setApellido] = useState('')
@@ -602,7 +603,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                     </button>
                   )}
                   {storeConfig?.transfer_enabled && (
-                    <button onClick={handleTransferencia} disabled={loading} className="w-full flex items-center gap-4 p-5 border border-[var(--color-border)] hover:border-[var(--color-charcoal)] transition-colors text-left disabled:opacity-60">
+                    <button onClick={() => setShowTransferConfirm(true)} disabled={loading} className="w-full flex items-center gap-4 p-5 border border-[var(--color-border)] hover:border-[var(--color-charcoal)] transition-colors text-left disabled:opacity-60">
                       <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Building2 size={20} className="text-emerald-600" />
                       </div>
@@ -669,6 +670,34 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
           </div>
         </div>
       </main>
+
+      {showTransferConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white max-w-sm w-full p-6">
+            <p className="text-xs tracking-[0.2em] uppercase text-[var(--color-stone)] mb-2">Confirmar método de pago</p>
+            <h2 className="font-display text-2xl font-light text-[var(--color-charcoal)] mb-3">Transferencia bancaria</h2>
+            <p className="text-sm text-[var(--color-stone)] font-light leading-relaxed mb-6">
+              Vas a pagar por <strong>transferencia bancaria</strong>: tenés que transferir el monto manualmente y enviarnos el comprobante por WhatsApp. Si en realidad querías pagar con tarjeta o MercadoPago, volvé atrás y elegí esa opción.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowTransferConfirm(false)}
+                className="flex-1 py-3 border border-[var(--color-border)] text-xs tracking-[0.15em] uppercase text-[var(--color-stone)] hover:border-[var(--color-charcoal)] hover:text-[var(--color-charcoal)] transition-colors"
+              >
+                Volver
+              </button>
+              <button
+                onClick={() => { setShowTransferConfirm(false); handleTransferencia() }}
+                disabled={loading}
+                className="flex-1 py-3 bg-[var(--color-charcoal)] text-white text-xs tracking-[0.15em] uppercase hover:bg-[var(--color-stone)] transition-colors disabled:opacity-60"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer {...footerProps} />
     </>
   )
