@@ -131,8 +131,21 @@ export async function POST(req: NextRequest) {
         address_city: localidad ?? null,
         active: true,
       })
-      if (insertErr) console.error('[registro] INSERT error:', insertErr.message, insertErr.code, JSON.stringify(insertErr.details))
-      else console.log(`[registro] customer insertado OK — id=${userId}, tipo=${tipo}`)
+      if (insertErr) {
+        console.error('[registro] INSERT error:', insertErr.message, insertErr.code, JSON.stringify(insertErr.details))
+        // Colisión de clave primaria: esta cuenta (mismo email/identidad global) ya es
+        // cliente de OTRA tienda de la plataforma. No podemos crear el registro para
+        // esta tienda con este esquema — cortamos acá en vez de mandar un mail de
+        // bienvenida falso y dejar al usuario "logueado" sin fila de customer.
+        if (insertErr.code === '23505') {
+          return NextResponse.json({
+            error: 'Ya tenés una cuenta registrada con este email en otra tienda de nuestra red. Por ahora no podemos vincular la misma cuenta a esta tienda — escribinos para que te ayudemos a resolverlo, o registrate con otro email.',
+          }, { status: 409 })
+        }
+        return NextResponse.json({ error: 'No se pudo completar el registro. Intentá de nuevo o contactanos.' }, { status: 500 })
+      } else {
+        console.log(`[registro] customer insertado OK — id=${userId}, tipo=${tipo}`)
+      }
     }
 
     // Datos del tenant para el email
