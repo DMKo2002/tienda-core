@@ -24,6 +24,8 @@
     "./api/mp-preferencia": "./src/api/mp-preferencia.ts",
     "./api/auth-callback": "./src/api/auth-callback.ts",
     "./api/recuperar-password": "./src/api/recuperar-password.ts",
+    "./api/login": "./src/api/login.ts",
+    "./auth-email": "./src/lib/auth-email.ts",
     "./api/auth-verificar": "./src/api/auth-verificar.ts",
     "./CarritoPage": "./src/components/shop/CarritoPage.tsx",
     "./CheckoutPage": "./src/components/shop/CheckoutPage.tsx"
