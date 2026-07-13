@@ -170,19 +170,24 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
         if (data?.name) setBranding(b => ({ ...b, storeName: data.name }))
       })
 
-    // Pre-llenar datos del usuario registrado
+    // Pre-llenar datos del usuario registrado. Buscamos por auth_user_id (no
+    // email): el mail de Auth puede ser "disfrazado" por tienda (ver
+    // lib/auth-email.ts) y ya no coincide con customers.email para cuentas
+    // nuevas — el mail real de contacto vive en customers.email.
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
-      setEmail(user.email ?? '')
-      setEmailLocked(true)
 
       const { data: cust } = await supabase
         .from('customers')
-        .select('full_name, last_name, cuit, phone, address_street, address_city, address_province')
-        .eq('email', user.email ?? '')
+        .select('email, full_name, last_name, cuit, phone, address_street, address_city, address_province')
+        .eq('auth_user_id', user.id)
         .eq('tenant_id', tenantId)
         .maybeSingle()
 
+      if (cust?.email) {
+        setEmail(cust.email)
+        setEmailLocked(true)
+      }
       if (cust) {
         if (cust.full_name) setNombre(cust.full_name)
         if (cust.last_name) setApellido(cust.last_name)

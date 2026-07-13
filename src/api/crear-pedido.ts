@@ -172,8 +172,10 @@ export async function POST(req: NextRequest) {
 
       if (existingCustomer) {
         customerId = existingCustomer.id
+        // email: nunca user.email acá — puede ser el mail "disfrazado" de Auth
+        // (ver lib/auth-email.ts). El mail real de contacto es el del formulario.
         await supabase.from('customers').update({
-          email: user.email ?? email,
+          email: email.trim(),
           full_name: firstName || fullName,
           last_name: lastName || null,
           cuit: cuil || null,
@@ -190,7 +192,7 @@ export async function POST(req: NextRequest) {
           .from('customers')
           .select('id')
           .eq('tenant_id', TENANT_ID())
-          .eq('email', (user.email ?? email).trim())
+          .eq('email', email.trim())
           .maybeSingle()
 
         if (byEmail) {
@@ -213,7 +215,7 @@ export async function POST(req: NextRequest) {
               id: randomUUID(),
               tenant_id: TENANT_ID(),
               auth_user_id: user.id,
-              email: user.email ?? email,
+              email: email.trim(),
               full_name: firstName || fullName,
               last_name: lastName || null,
               cuit: cuil || null,
