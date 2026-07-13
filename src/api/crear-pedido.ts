@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { createServerSupabase, TENANT_ID } from '../lib/supabase-server'
 import { sendEmail, emailConfirmacionCliente, emailNotificacionDueno } from '../lib/email'
@@ -157,20 +158,78 @@ export async function POST(req: NextRequest) {
     let customerId: string | null = null
 
     if (user) {
-      customerId = user.id
-      await supabase.from('customers').upsert({
-        id: user.id,
-        tenant_id: TENANT_ID(),
-        email: user.email ?? email,
-        full_name: firstName || fullName,
-        last_name: lastName || null,
-        cuit: cuil || null,
-        phone: phone || null,
-        address_street: addressStreet || null,
-        address_city: addressCity || null,
-        address_province: addressProvince || null,
-        address_zip: addressZip || null,
-      }, { onConflict: 'id', ignoreDuplicates: false })
+      // auth_user_id (no id) identifica a esta persona — id es propio de la fila/tienda.
+      // Una misma cuenta de login puede tener una fila de customer distinta en cada
+      // tienda de la plataforma, así que buscamos/creamos por (tenant_id, auth_user_id),
+      // nunca hacemos upsert por id = user.id (eso rompía con "duplicate key" cuando la
+      // misma persona ya era customer en otra tienda).
+      const { data: existingCustomer } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('tenant_id', TENANT_ID())
+        .eq('auth_user_id', user.id)
+        .maybeSingle()
+
+      if (existingCustomer) {
+        customerId = existingCustomer.id
+        await supabase.from('customers').update({
+          email: user.email ?? email,
+          full_name: firstName || fullName,
+          last_name: lastName || null,
+          cuit: cuil || null,
+          phone: phone || null,
+          address_street: addressStreet || null,
+          address_city: addressCity || null,
+          address_province: addressProvince || null,
+          address_zip: addressZip || null,
+        }).eq('id', existingCustomer.id)
+      } else {
+        // Puede existir un customer importado (WooCommerce) con este email pero
+        // todavía sin auth_user_id vinculado — lo vinculamos en vez de duplicarlo.
+        const { data: byEmail } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('tenant_id', TENANT_ID())
+          .eq('email', (user.email ?? email).trim())
+          .maybeSingle()
+
+        if (byEmail) {
+          customerId = byEmail.id
+          await supabase.from('customers').update({
+            auth_user_id: user.id,
+            full_name: firstName || fullName,
+            last_name: lastName || null,
+            cuit: cuil || null,
+            phone: phone || null,
+            address_street: addressStreet || null,
+            address_city: addressCity || null,
+            address_province: addressProvince || null,
+            address_zip: addressZip || null,
+          }).eq('id', byEmail.id)
+        } else {
+          const { data: newCustomer } = await supabase
+            .from('customers')
+            .insert({
+              id: randomUUID(),
+              tenant_id: TENANT_ID(),
+              auth_user_id: user.id,
+              email: user.email ?? email,
+              full_name: firstName || fullName,
+              last_name: lastName || null,
+              cuit: cuil || null,
+              phone: phone || null,
+              address_street: addressStreet || null,
+              address_city: addressCity || null,
+              address_province: addressProvince || null,
+              address_zip: addressZip || null,
+              type: 'retail',
+              active: true,
+            })
+            .select()
+            .single()
+          customerId = newCustomer?.id ?? null
+        }
+      }
     } else {
       const { data: existing } = await supabase
         .from('customers')

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { createServerSupabase, createServiceSupabase, TENANT_ID } from '../lib/supabase-server'
 import { sendEmail, emailBienvenidaCliente, emailConfirmacionRegistro } from '../lib/email'
 
@@ -72,7 +73,9 @@ export async function POST(req: NextRequest) {
           )
         userId = signInData.user.id
         needsConfirmation = false
-        const { data: existing } = await service.from('customers').select('id').eq('id', userId).eq('tenant_id', tenantId).maybeSingle()
+        // auth_user_id (no id) es lo que identifica a esta persona entre tiendas —
+        // id es un identificador propio por tienda, ver migración auth_user_id.
+        const { data: existing } = await service.from('customers').select('id').eq('auth_user_id', userId).eq('tenant_id', tenantId).maybeSingle()
         if (existing)
           return NextResponse.json({ error: 'Ya tenés una cuenta en esta tienda. Iniciá sesión.' }, { status: 409 })
       } else {
@@ -107,13 +110,16 @@ export async function POST(req: NextRequest) {
       .limit(1)
 
     if (existingByEmail && existingByEmail.length > 0) {
-      // Existe un customer (importado u otro) → actualizar tipo y datos SIN tocar el id
+      // Existe un customer (importado u otro) → actualizar tipo y datos SIN tocar el id,
+      // y vincularlo a esta identidad de auth (puede ser la primera vez que este
+      // customer importado se registra/loguea de verdad).
       const { error: updateErr } = await service.from('customers').update({
         full_name: nombre,
         last_name: apellido ?? null,
         type: tipo,
         company_name: empresa ?? null,
         cuit: cuit ?? null,
+        auth_user_id: userId,
         ...(direccion ? { address_street: direccion } : {}),
         ...(provincia ? { address_province: provincia } : {}),
         ...(localidad ? { address_city: localidad } : {}),
@@ -121,8 +127,12 @@ export async function POST(req: NextRequest) {
       }).eq('id', existingByEmail[0].id).eq('tenant_id', tenantId)
       if (updateErr) console.error('[registro] error actualizando customer existente:', updateErr.message)
     } else {
+      // id es propio de esta fila/tienda — NUNCA reutilizamos el id de auth acá,
+      // porque una misma persona (mismo auth_user_id) puede tener una fila de
+      // customer distinta en cada tienda de la plataforma. auth_user_id es el
+      // vínculo real con la cuenta de login.
       const { error: insertErr } = await service.from('customers').insert({
-        id: userId, tenant_id: tenantId, email,
+        id: randomUUID(), tenant_id: tenantId, email, auth_user_id: userId,
         full_name: nombre, last_name: apellido ?? null,
         company_name: empresa ?? null, cuit: cuit ?? null,
         phone: null, type: tipo,
@@ -144,7 +154,7 @@ export async function POST(req: NextRequest) {
         }
         return NextResponse.json({ error: 'No se pudo completar el registro. Intentá de nuevo o contactanos.' }, { status: 500 })
       } else {
-        console.log(`[registro] customer insertado OK — id=${userId}, tipo=${tipo}`)
+        console.log(`[registro] customer insertado OK — auth_user_id=${userId}, tipo=${tipo}`)
       }
     }
 
