@@ -181,7 +181,11 @@ export default function ProductCard({
                 <span className="text-sm text-[var(--color-charcoal)]">
                   {formatPrice(wholesalePrice)}
                 </span>
-              ) : null}
+              ) : (
+                <span className="text-xs text-[var(--color-stone)]">
+                  Producto solo por mayor
+                </span>
+              )}
             </>
           ) : isRetailUser ? (
             <span className="text-xs text-[var(--color-stone)]">
