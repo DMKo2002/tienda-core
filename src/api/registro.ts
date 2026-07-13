@@ -52,14 +52,25 @@ export async function POST(req: NextRequest) {
     // cliente de ESTA tienda es la tabla customers, no Supabase Auth.
     const { data: existingRows } = await service
       .from('customers')
-      .select('id, auth_user_id')
+      .select('id, auth_user_id, type')
       .eq('tenant_id', tenantId)
       .eq('email', normalizedEmail)
       .limit(1)
     const existingCustomer = existingRows?.[0]
 
     if (existingCustomer?.auth_user_id) {
-      return NextResponse.json({ error: 'Ya tenés una cuenta en esta tienda. Iniciá sesión.' }, { status: 409 })
+      // Excepción: una cuenta minorista puede "reregistrarse" como mayorista con
+      // el mismo mail si completa los datos de mayorista — lo tratamos como un
+      // upgrade en vez de rechazarlo. Requiere la contraseña correcta (se valida
+      // más abajo al intentar el login con el mail disfrazado).
+      const canUpgradeToWholesale =
+        existingCustomer.type === 'retail' &&
+        tipo === 'wholesale' &&
+        !!empresa && !!cuit && !!direccion && !!provincia && !!localidad
+
+      if (!canUpgradeToWholesale) {
+        return NextResponse.json({ error: 'Ya tenés una cuenta en esta tienda. Iniciá sesión.' }, { status: 409 })
+      }
     }
 
     // Mail disfrazado: cada tienda tiene su propia cuenta de Auth independiente
