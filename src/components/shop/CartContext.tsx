@@ -15,6 +15,7 @@ export interface CartItem {
   imageUrl: string | null
   quantity: number
   stock: number
+  minQty?: number
 }
 
 interface CartContextType {
@@ -64,7 +65,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const newQty = Math.min(existing.quantity + newItem.quantity, newItem.stock)
         return prev.map(i =>
           i.variantId === newItem.variantId
-            ? { ...i, quantity: newQty }
+            ? { ...i, quantity: newQty, minQty: newItem.minQty ?? i.minQty }
             : i
         )
       }
@@ -76,11 +77,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems(prev => prev.filter(i => i.variantId !== variantId))
   }, [])
 
+  // No se permite bajar la cantidad por debajo del mínimo por variante — o se
+  // saca el ítem del carrito por completo (qty <= 0), o se respeta el piso.
   const updateQuantity = useCallback((variantId: string, qty: number) => {
     if (qty <= 0) {
       setItems(prev => prev.filter(i => i.variantId !== variantId))
     } else {
-      setItems(prev => prev.map(i => i.variantId === variantId ? { ...i, quantity: qty } : i))
+      setItems(prev => prev.map(i => {
+        if (i.variantId !== variantId) return i
+        const floor = i.minQty ?? 1
+        return { ...i, quantity: Math.max(qty, floor) }
+      }))
     }
   }, [])
 

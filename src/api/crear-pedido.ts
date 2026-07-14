@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       firstName, lastName, fullName, email, phone,
       cuil,
       addressStreet, addressCity, addressProvince, addressZip,
-      shippingMethod, notes, items,
+      shippingMethod, shippingCarrier, notes, items,
       paymentMethod,
     } = body
     // NOTA: shippingCost y price NO se confían desde el cliente — se recalculan desde la DB
@@ -283,6 +283,11 @@ export async function POST(req: NextRequest) {
           city: addressCity,
           province: addressProvince,
           zip: addressZip,
+          // method_name: nombre resuelto del método al momento del pedido (no el
+          // índice "custom_N", que puede correrse si el tenant edita la lista
+          // después). carrier: transporte elegido, solo para métodos que lo piden.
+          method_name: shippingLabel || null,
+          carrier: shippingCarrier || null,
         },
         notes: notes || null,
       })
@@ -330,7 +335,7 @@ export async function POST(req: NextRequest) {
       subtotal,
       shippingCost: validatedShippingCost,
       total,
-      shippingLabel,
+      shippingLabel: shippingCarrier ? `${shippingLabel} — ${shippingCarrier}` : shippingLabel,
       paymentMethod,
     }
 

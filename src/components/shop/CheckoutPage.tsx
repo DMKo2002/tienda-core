@@ -134,6 +134,10 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
   const [country, setCountry] = useState('Argentina')
   const [shippingMethod, setShippingMethod] = useState('')
   const [shippingCost, setShippingCost] = useState(0)
+  // Transporte elegido cuando el método de envío tiene una lista de transportes
+  // configurada (ej: "Expreso / Contrareembolso"). 'Otro' revela un campo libre.
+  const [carrierChoice, setCarrierChoice] = useState('')
+  const [carrierOtherText, setCarrierOtherText] = useState('')
   const [notes, setNotes] = useState('')
   const [copied, setCopied] = useState<'alias' | 'cbu' | null>(null)
 
@@ -204,6 +208,8 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
   const activeCustomMethods: any[] = ((storeConfig as any)?.custom_shipping ?? []).filter((m: any) => m.active && m.name)
   const selectedMethodIdx = shippingMethod.startsWith('custom_') ? Number(shippingMethod.split('_')[1]) : -1
   const selectedMethod = selectedMethodIdx >= 0 ? activeCustomMethods[selectedMethodIdx] : null
+  const selectedMethodCarriers: string[] = selectedMethod?.carriers ?? []
+  const effectiveCarrier = carrierChoice === 'Otro' ? carrierOtherText.trim() : carrierChoice
 
   // Nota: la direccion/localidad/provincia se piden SIEMPRE, sin excepcion
   // por metodo de envio (incluido "retiro en local"), porque muchos mayoristas
@@ -230,6 +236,10 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
     if (!addressProvince.trim()) { setError('La provincia es obligatoria'); return }
     if (!addressZip.trim()) { setError('El código postal es obligatorio'); return }
     if (!country.trim()) { setError('El país es obligatorio'); return }
+    if (selectedMethodCarriers.length > 0 && !effectiveCarrier) {
+      setError('Elegí un transporte (o "Otro" y escribí cuál)')
+      return
+    }
     setError(null)
     setStep('pago')
   }
@@ -255,6 +265,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
           country: country.trim() || null,
           shippingMethod,
           shippingCost,
+          shippingCarrier: effectiveCarrier || null,
           notes: notes.trim() || null,
           paymentMethod,
           items: items.map(item => ({
@@ -510,23 +521,54 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                       <div className="space-y-2">
                         {activeCustomMethods.map((m: any, i: number) => {
                           const val = `custom_${i}`
+                          const carriers: string[] = m.carriers ?? []
+                          const isSelected = shippingMethod === val
                           return (
-                            <label key={i} className={`flex items-center gap-3 p-4 border cursor-pointer transition-colors ${shippingMethod === val ? 'border-[var(--color-charcoal)]' : 'border-[var(--color-border)] hover:border-[var(--color-stone)]'}`}>
-                              <input
-                                type="radio"
-                                name="shipping"
-                                value={val}
-                                checked={shippingMethod === val}
-                                onChange={() => { setShippingMethod(val); setShippingCost(m.price ?? 0) }}
-                                className="accent-[var(--color-charcoal)]"
-                              />
-                              <div className="flex-1">
-                                <p className="text-sm font-light text-[var(--color-charcoal)]">{m.name}</p>
-                              </div>
-                              <span className="text-sm font-light text-[var(--color-charcoal)]">
-                                {(m.price ?? 0) > 0 ? formatPrice(m.price) : 'Gratis'}
-                              </span>
-                            </label>
+                            <div key={i}>
+                              <label className={`flex items-center gap-3 p-4 border cursor-pointer transition-colors ${isSelected ? 'border-[var(--color-charcoal)]' : 'border-[var(--color-border)] hover:border-[var(--color-stone)]'}`}>
+                                <input
+                                  type="radio"
+                                  name="shipping"
+                                  value={val}
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    setShippingMethod(val)
+                                    setShippingCost(m.price ?? 0)
+                                    setCarrierChoice('')
+                                    setCarrierOtherText('')
+                                  }}
+                                  className="accent-[var(--color-charcoal)]"
+                                />
+                                <div className="flex-1">
+                                  <p className="text-sm font-light text-[var(--color-charcoal)]">{m.name}</p>
+                                </div>
+                                <span className="text-sm font-light text-[var(--color-charcoal)]">
+                                  {(m.price ?? 0) > 0 ? formatPrice(m.price) : 'Gratis'}
+                                </span>
+                              </label>
+                              {isSelected && carriers.length > 0 && (
+                                <div className="pl-4 pr-4 pb-4 -mt-1 border border-t-0 border-[var(--color-charcoal)] space-y-2">
+                                  <label className={labelClass}>Transporte *</label>
+                                  <select
+                                    className={inputClass}
+                                    value={carrierChoice}
+                                    onChange={e => setCarrierChoice(e.target.value)}
+                                  >
+                                    <option value="">Seleccioná un transporte</option>
+                                    {carriers.map(c => <option key={c} value={c}>{c}</option>)}
+                                    <option value="Otro">Otro</option>
+                                  </select>
+                                  {carrierChoice === 'Otro' && (
+                                    <input
+                                      className={inputClass}
+                                      value={carrierOtherText}
+                                      onChange={e => setCarrierOtherText(e.target.value)}
+                                      placeholder="Nombre del transporte"
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           )
                         })}
                       </div>

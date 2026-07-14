@@ -161,13 +161,20 @@ export default function CarritoPage({ Navbar, Footer, shopHref = '/tienda', chec
                           Precio mayorista
                         </span>
                       )}
+                      {(item.minQty ?? 1) > 1 && (
+                        <p className="text-[10px] text-[var(--color-stone)] mt-1">Mínimo {item.minQty} unidades</p>
+                      )}
 
                       <div className="flex items-center justify-between mt-4">
                         {/* Cantidad */}
                         <div className="flex items-center border border-[var(--color-border)]">
                           <button
-                            onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
-                            className="w-8 h-8 flex items-center justify-center text-[var(--color-charcoal)] hover:bg-[var(--color-border)] transition-colors text-sm"
+                            onClick={() => {
+                              const floor = item.minQty ?? 1
+                              if (item.quantity > floor) updateQuantity(item.variantId, item.quantity - 1)
+                            }}
+                            disabled={item.quantity <= (item.minQty ?? 1)}
+                            className="w-8 h-8 flex items-center justify-center text-[var(--color-charcoal)] hover:bg-[var(--color-border)] transition-colors text-sm disabled:opacity-30"
                           >
                             −
                           </button>

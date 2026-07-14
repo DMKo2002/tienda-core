@@ -16,6 +16,7 @@ interface AddToCartButtonProps {
   showPrices?: boolean
   ignoreStock?: boolean
   isWholesale?: boolean
+  minQty?: number
   product: {
     id: string
     name: string
@@ -58,11 +59,11 @@ function isLight(hex: string): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 > 180
 }
 
-export default function AddToCartButton({ product, sizes, colors, showPrices = true, ignoreStock = false, isWholesale = false }: AddToCartButtonProps) {
-  const { addItem } = useCart()
+export default function AddToCartButton({ product, sizes, colors, showPrices = true, ignoreStock = false, isWholesale = false, minQty = 1 }: AddToCartButtonProps) {
+  const { addItem, items: cartItems } = useCart()
   const [selectedSize, setSelectedSize] = useState<string | null>(sizes[0] ?? null)
   const [selectedColor, setSelectedColor] = useState<string | null>(colors[0] ?? null)
-  const [quantity, setQuantity] = useState(1)
+  const [quantity, setQuantity] = useState(Math.max(1, minQty))
   const [added, setAdded] = useState(false)
   const [stockError, setStockError] = useState<string | null>(null)
 
@@ -122,6 +123,15 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
         return
       }
     }
+    const composedVariantId = `${selectedVariant.id}__${selectedSize ?? ''}__${selectedColor ?? ''}`
+    // El mínimo se exige por variante exacta (talle+color) — si ya hay unidades
+    // de esta misma variante en el carrito, cuentan para alcanzar el mínimo.
+    const alreadyInCart = cartItems.find(i => i.variantId === composedVariantId)?.quantity ?? 0
+    if (minQty > 1 && alreadyInCart + quantity < minQty) {
+      const faltan = minQty - alreadyInCart
+      setStockError(`Mínimo ${minQty} unidades por color/talle — agregá al menos ${faltan} más`)
+      return
+    }
     // Si el tenant ignora stock, el carrito no debe heredar el stock real
     // (puede ser 0 para productos hechos a pedido) — CartContext descarta
     // silenciosamente cualquier ítem con stock <= 0, lo que hacía que
@@ -130,7 +140,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
     addItem({
       // Clave compuesta para que distintos color/talle sean items separados en el carrito
       // incluso si comparten el mismo ID de variante en la DB (ej: productos WooCommerce)
-      variantId: `${selectedVariant.id}__${selectedSize ?? ''}__${selectedColor ?? ''}`,
+      variantId: composedVariantId,
       productId: product.id,
       productName: product.name,
       variantDesc: [selectedSize, selectedColor].filter(Boolean).join(' / '),
@@ -142,6 +152,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
       imageUrl: product.coverUrl,
       quantity,
       stock: cartStock,
+      minQty,
     })
     setAdded(true)
     setStockError(null)
@@ -225,10 +236,15 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
       )}
 
       <div>
-        <p className="text-xs tracking-[0.15em] uppercase text-[var(--color-stone)] mb-3">Cantidad</p>
+        <p className="text-xs tracking-[0.15em] uppercase text-[var(--color-stone)] mb-3">
+          Cantidad
+          {minQty > 1 && (
+            <span className="normal-case font-light text-[var(--color-stone)]"> · mínimo {minQty} por color/talle</span>
+          )}
+        </p>
         <div className="flex items-center border border-[var(--color-border)] w-fit">
           <button
-            onClick={() => { setQuantity(q => Math.max(1, q - 1)); setStockError(null) }}
+            onClick={() => { setQuantity(q => Math.max(minQty, 1, q - 1)); setStockError(null) }}
             className="w-10 h-10 flex items-center justify-center text-[var(--color-charcoal)] hover:bg-[var(--color-border)] transition-colors"
           >
             -
