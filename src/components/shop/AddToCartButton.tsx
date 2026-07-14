@@ -106,11 +106,19 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
     : undefined
   const inStock = ignoreStock || (selectedVariant?.stock ?? 0) > 0
 
-  const effectivePrice = wholesalePrice && quantity >= wholesalePrice.min_qty
+  // El mínimo (tanto para precio mayorista como para el piso de compra) se
+  // exige por ARTÍCULO, sumando todas las variantes (talle/color) de este
+  // mismo producto que ya están en el carrito — no por variante exacta.
+  const sameProductQtyInCart = cartItems
+    .filter(i => i.productId === product.id)
+    .reduce((sum, i) => sum + i.quantity, 0)
+  const projectedQty = sameProductQtyInCart + quantity
+
+  const effectivePrice = wholesalePrice && projectedQty >= wholesalePrice.min_qty
     ? wholesalePrice.price
     : (retailPrice ?? (isWholesale ? wholesalePrice?.price : undefined) ?? 0)
 
-  const priceType: 'retail' | 'wholesale' = wholesalePrice && quantity >= wholesalePrice.min_qty
+  const priceType: 'retail' | 'wholesale' = wholesalePrice && projectedQty >= wholesalePrice.min_qty
     ? 'wholesale' : 'retail'
 
   function handleAddToCart() {
@@ -124,12 +132,9 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
       }
     }
     const composedVariantId = `${selectedVariant.id}__${selectedSize ?? ''}__${selectedColor ?? ''}`
-    // El mínimo se exige por variante exacta (talle+color) — si ya hay unidades
-    // de esta misma variante en el carrito, cuentan para alcanzar el mínimo.
-    const alreadyInCart = cartItems.find(i => i.variantId === composedVariantId)?.quantity ?? 0
-    if (minQty > 1 && alreadyInCart + quantity < minQty) {
-      const faltan = minQty - alreadyInCart
-      setStockError(`Mínimo ${minQty} unidades por color/talle — agregá al menos ${faltan} más`)
+    if (minQty > 1 && projectedQty < minQty) {
+      const faltan = minQty - sameProductQtyInCart
+      setStockError(`Mínimo ${minQty} unidades por artículo — agregá al menos ${faltan} más`)
       return
     }
     // Si el tenant ignora stock, el carrito no debe heredar el stock real
@@ -239,7 +244,9 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
         <p className="text-xs tracking-[0.15em] uppercase text-[var(--color-stone)] mb-3">
           Cantidad
           {minQty > 1 && (
-            <span className="normal-case font-light text-[var(--color-stone)]"> · mínimo {minQty} por color/talle</span>
+            <span className="normal-case font-light text-[var(--color-stone)]">
+              {' '}· mínimo {minQty} por artículo{sameProductQtyInCart > 0 ? ` (ya tenés ${sameProductQtyInCart} en el carrito)` : ''}
+            </span>
           )}
         </p>
         <div className="flex items-center border border-[var(--color-border)] w-fit">

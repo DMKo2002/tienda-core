@@ -41,6 +41,18 @@ export default function CarritoPage({ Navbar, Footer, shopHref = '/tienda', chec
   const [minOrder, setMinOrder] = useState<number | null>(null)
   const [branding, setBranding] = useState<Branding>({ storeName: 'Tienda' })
 
+  // El mínimo se exige por PRODUCTO (sumando todas las variantes de talle/color
+  // de ese mismo artículo en el carrito) — si otras variantes ya lo cubren,
+  // esta línea puede bajar hasta 1.
+  function decrementFloor(item: typeof items[number]): number {
+    const minQty = item.minQty ?? 1
+    if (minQty <= 1) return 1
+    const otherSameProductQty = items
+      .filter(i => i.productId === item.productId && i.variantId !== item.variantId)
+      .reduce((sum, i) => sum + i.quantity, 0)
+    return Math.max(1, minQty - otherSameProductQty)
+  }
+
   useEffect(() => {
     const supabase = createClient()
     const tenantId = TENANT_ID()
@@ -162,7 +174,7 @@ export default function CarritoPage({ Navbar, Footer, shopHref = '/tienda', chec
                         </span>
                       )}
                       {(item.minQty ?? 1) > 1 && (
-                        <p className="text-[10px] text-[var(--color-stone)] mt-1">Mínimo {item.minQty} unidades</p>
+                        <p className="text-[10px] text-[var(--color-stone)] mt-1">Mínimo {item.minQty} unidades por artículo</p>
                       )}
 
                       <div className="flex items-center justify-between mt-4">
@@ -170,10 +182,10 @@ export default function CarritoPage({ Navbar, Footer, shopHref = '/tienda', chec
                         <div className="flex items-center border border-[var(--color-border)]">
                           <button
                             onClick={() => {
-                              const floor = item.minQty ?? 1
+                              const floor = decrementFloor(item)
                               if (item.quantity > floor) updateQuantity(item.variantId, item.quantity - 1)
                             }}
-                            disabled={item.quantity <= (item.minQty ?? 1)}
+                            disabled={item.quantity <= decrementFloor(item)}
                             className="w-8 h-8 flex items-center justify-center text-[var(--color-charcoal)] hover:bg-[var(--color-border)] transition-colors text-sm disabled:opacity-30"
                           >
                             −

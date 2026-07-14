@@ -113,8 +113,25 @@ export async function POST(req: NextRequest) {
 
     if (priceErr) throw priceErr
 
+    // El mínimo de precio mayorista se exige por PRODUCTO (sumando todas las
+    // variantes de talle/color de ese mismo artículo en el pedido), no por
+    // variante individual — ej: 1 unidad talle S + 1 M + 1 L del mismo
+    // producto cuentan como 3 para el mínimo, no como 1 cada una.
+    const variantIdToProductId = new Map<string, string>(
+      (variantRows ?? []).map((v: any) => [v.id, v.product_id])
+    )
+    const qtyByProduct = new Map<string, number>()
+    for (const item of items as any[]) {
+      const vid = realVariantId(item.variantId)
+      const pid = variantIdToProductId.get(vid)
+      if (!pid) continue
+      const qty = Number(item.quantity) || 1
+      qtyByProduct.set(pid, (qtyByProduct.get(pid) ?? 0) + qty)
+    }
+
     const validatedItems = (items as any[]).map((item: any) => {
       const vid = realVariantId(item.variantId)
+      const pid = variantIdToProductId.get(vid)
       const rules = (priceRulesData ?? []).filter((r: any) => r.variant_id === vid)
       const retailRule = rules.find((r: any) => r.type === 'retail')
       const wholesaleRule = rules.find((r: any) => r.type === 'wholesale')
@@ -123,11 +140,12 @@ export async function POST(req: NextRequest) {
       let actualPriceType: 'retail' | 'wholesale'
 
       const qty = Number(item.quantity) || 1
+      const productQty = pid ? (qtyByProduct.get(pid) ?? qty) : qty
 
       if (
         wholesaleRule &&
         item.priceType === 'wholesale' &&
-        qty >= (wholesaleRule.min_qty ?? 1)
+        productQty >= (wholesaleRule.min_qty ?? 1)
       ) {
         actualPrice = wholesaleRule.price
         actualPriceType = 'wholesale'

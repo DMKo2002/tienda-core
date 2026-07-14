@@ -77,18 +77,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems(prev => prev.filter(i => i.variantId !== variantId))
   }, [])
 
-  // No se permite bajar la cantidad por debajo del mínimo por variante — o se
-  // saca el ítem del carrito por completo (qty <= 0), o se respeta el piso.
+  // El mínimo se exige por PRODUCTO (sumando todas las variantes de
+  // talle/color de ese mismo artículo en el carrito), no por variante
+  // individual — si otras variantes del mismo producto ya cubren el mínimo,
+  // esta puede bajar hasta 1. O se saca el ítem del carrito por completo
+  // (qty <= 0), o se respeta ese piso calculado.
   const updateQuantity = useCallback((variantId: string, qty: number) => {
-    if (qty <= 0) {
-      setItems(prev => prev.filter(i => i.variantId !== variantId))
-    } else {
-      setItems(prev => prev.map(i => {
-        if (i.variantId !== variantId) return i
-        const floor = i.minQty ?? 1
-        return { ...i, quantity: Math.max(qty, floor) }
-      }))
-    }
+    setItems(prev => {
+      const target = prev.find(i => i.variantId === variantId)
+      if (!target) return prev
+      if (qty <= 0) {
+        return prev.filter(i => i.variantId !== variantId)
+      }
+      const minQty = target.minQty ?? 1
+      const otherSameProductQty = prev
+        .filter(i => i.productId === target.productId && i.variantId !== variantId)
+        .reduce((sum, i) => sum + i.quantity, 0)
+      const floor = minQty > 1 ? Math.max(1, minQty - otherSameProductQty) : 1
+      return prev.map(i => i.variantId === variantId ? { ...i, quantity: Math.max(qty, floor) } : i)
+    })
   }, [])
 
   const clearCart = useCallback(() => setItems([]), [])
