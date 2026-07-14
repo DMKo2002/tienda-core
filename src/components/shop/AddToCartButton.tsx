@@ -63,7 +63,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
   const { addItem, items: cartItems } = useCart()
   const [selectedSize, setSelectedSize] = useState<string | null>(sizes[0] ?? null)
   const [selectedColor, setSelectedColor] = useState<string | null>(colors[0] ?? null)
-  const [quantity, setQuantity] = useState(Math.max(1, minQty))
+  const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
   const [stockError, setStockError] = useState<string | null>(null)
 
@@ -132,11 +132,9 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
       }
     }
     const composedVariantId = `${selectedVariant.id}__${selectedSize ?? ''}__${selectedColor ?? ''}`
-    if (minQty > 1 && projectedQty < minQty) {
-      const faltan = minQty - sameProductQtyInCart
-      setStockError(`Mínimo ${minQty} unidades por artículo — agregá al menos ${faltan} más`)
-      return
-    }
+    // El mínimo por artículo NO bloquea el agregado individual — se permite
+    // sumar de a poco distintos talles/colores del mismo producto. El total
+    // se valida más adelante, en el carrito / checkout (ver useCartValidation).
     // Si el tenant ignora stock, el carrito no debe heredar el stock real
     // (puede ser 0 para productos hechos a pedido) — CartContext descarta
     // silenciosamente cualquier ítem con stock <= 0, lo que hacía que
@@ -245,13 +243,14 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
           Cantidad
           {minQty > 1 && (
             <span className="normal-case font-light text-[var(--color-stone)]">
-              {' '}· mínimo {minQty} por artículo{sameProductQtyInCart > 0 ? ` (ya tenés ${sameProductQtyInCart} en el carrito)` : ''}
+              {' '}· mínimo {minQty} por artículo (combinando talles/colores)
+              {sameProductQtyInCart > 0 ? ` — ya tenés ${sameProductQtyInCart} en el carrito` : ''}
             </span>
           )}
         </p>
         <div className="flex items-center border border-[var(--color-border)] w-fit">
           <button
-            onClick={() => { setQuantity(q => Math.max(minQty, 1, q - 1)); setStockError(null) }}
+            onClick={() => { setQuantity(q => Math.max(1, q - 1)); setStockError(null) }}
             className="w-10 h-10 flex items-center justify-center text-[var(--color-charcoal)] hover:bg-[var(--color-border)] transition-colors"
           >
             -

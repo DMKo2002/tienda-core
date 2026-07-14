@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     // ── 1. Fetch store config (envío + email notificación) ────────────────────
     const [{ data: storeConf }, { data: tenant }] = await Promise.all([
-      supabase.from('store_config').select('custom_shipping, notification_email, email_from_name, reply_to, email_intro_pedido_recibido').eq('tenant_id', TENANT_ID()).single(),
+      supabase.from('store_config').select('custom_shipping, notification_email, email_from_name, reply_to, email_intro_pedido_recibido, min_qty_per_variant').eq('tenant_id', TENANT_ID()).single(),
       supabase.from('tenants').select('name').eq('id', TENANT_ID()).single(),
     ])
 
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     const productIdsToCheck = [...new Set((variantRows ?? []).map((v: any) => v.product_id))]
     const { data: ownedProducts } = await supabase
       .from('products')
-      .select('id')
+      .select('id, name, min_qty')
       .in('id', productIdsToCheck)
       .eq('tenant_id', TENANT_ID())
 
@@ -127,6 +127,34 @@ export async function POST(req: NextRequest) {
       if (!pid) continue
       const qty = Number(item.quantity) || 1
       qtyByProduct.set(pid, (qtyByProduct.get(pid) ?? 0) + qty)
+    }
+
+    // ── 3b. Validar mínimo de unidades por ARTÍCULO (piso de compra) ──────────
+    // Mismo criterio que el mínimo de precio mayorista: se suman todas las
+    // variantes (talle/color) de un mismo producto, no cada una por separado.
+    // Esto es una red de seguridad server-side — el front (AddToCartButton /
+    // CarritoPage / CheckoutPage) ya no bloquea el agregado individual, así
+    // que sin este chequeo un pedido armado a mano podría saltarse el mínimo.
+    const storeMinQtyPerVariant = Number((storeConf as any)?.min_qty_per_variant) || 1
+    const productMinQtyById = new Map<string, { minQty: number; name: string }>(
+      (ownedProducts ?? []).map((p: any) => [
+        p.id,
+        { minQty: Number(p.min_qty) || storeMinQtyPerVariant, name: p.name ?? 'Producto' },
+      ])
+    )
+    const unmetMinQty: string[] = []
+    for (const [pid, qty] of qtyByProduct.entries()) {
+      const info = productMinQtyById.get(pid)
+      const minQty = info?.minQty ?? storeMinQtyPerVariant
+      if (minQty > 1 && qty < minQty) {
+        unmetMinQty.push(`${info?.name ?? 'Producto'} (mínimo ${minQty}, tenés ${qty})`)
+      }
+    }
+    if (unmetMinQty.length > 0) {
+      return NextResponse.json(
+        { error: `Algunos productos no llegan al mínimo por artículo: ${unmetMinQty.join(', ')}.` },
+        { status: 400 }
+      )
     }
 
     const validatedItems = (items as any[]).map((item: any) => {

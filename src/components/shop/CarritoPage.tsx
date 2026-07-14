@@ -87,7 +87,7 @@ export default function CarritoPage({ Navbar, Footer, shopHref = '/tienda', chec
       })
   }, [])
 
-  const { removedCount, canCheckout, hasMin, meetsMin, remaining, progress } = useCartValidation(minOrder)
+  const { removedCount, canCheckout, hasMin, meetsMin, remaining, progress, meetsProductMinimums, unmetProducts } = useCartValidation(minOrder)
 
   return (
     <>
@@ -173,9 +173,15 @@ export default function CarritoPage({ Navbar, Footer, shopHref = '/tienda', chec
                           Precio mayorista
                         </span>
                       )}
-                      {(item.minQty ?? 1) > 1 && (
-                        <p className="text-[10px] text-[var(--color-stone)] mt-1">Mínimo {item.minQty} unidades por artículo</p>
-                      )}
+                      {(item.minQty ?? 1) > 1 && (() => {
+                        const unmet = unmetProducts.find(u => u.productId === item.productId)
+                        return (
+                          <p className={`text-[10px] mt-1 ${unmet ? 'text-amber-600' : 'text-[var(--color-stone)]'}`}>
+                            Mínimo {item.minQty} unidades por artículo (combinando talles/colores)
+                            {unmet ? ` — faltan ${unmet.need}` : ''}
+                          </p>
+                        )
+                      })()}
 
                       <div className="flex items-center justify-between mt-4">
                         {/* Cantidad */}
@@ -285,6 +291,15 @@ export default function CarritoPage({ Navbar, Footer, shopHref = '/tienda', chec
                         <p className="text-[10px] text-[var(--color-stone)] text-center mt-2">
                           Mínimo de compra: {formatPrice(minOrder!)}
                         </p>
+                      )}
+                      {!meetsProductMinimums && (
+                        <div className="mt-2 text-center">
+                          {unmetProducts.map(u => (
+                            <p key={u.productId} className="text-[10px] text-amber-600">
+                              {u.productName}: agregá {u.need} más para llegar al mínimo por artículo
+                            </p>
+                          ))}
+                        </div>
                       )}
                     </div>
                   )}

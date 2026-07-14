@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, ComponentType } from 'react'
 import { useCart } from './CartContext'
+import { useCartValidation } from './useCartValidation'
 import Link from 'next/link'
 import { ArrowLeft, CreditCard, Building2, ImageOff, Check } from 'lucide-react'
 import { createClient, TENANT_ID } from '../../lib/supabase'
@@ -218,12 +219,17 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
 
   const totalConEnvio = total + shippingCost
   const minOrder: number | null = storeConfig?.min_order_amount ?? null
-  const meetsMin = !minOrder || total >= minOrder
+  const { meetsMin, meetsProductMinimums, unmetProducts } = useCartValidation(minOrder)
 
   async function handleContinuar() {
     if (!meetsMin) {
       const falta = formatPrice(minOrder! - total)
       setError(`El pedido mínimo es de ${formatPrice(minOrder!)}. Te faltan ${falta}.`)
+      return
+    }
+    if (!meetsProductMinimums) {
+      const detalle = unmetProducts.map(u => `${u.productName} (faltan ${u.need})`).join(', ')
+      setError(`Algunos productos no llegan al mínimo por artículo: ${detalle}.`)
       return
     }
     if (!nombre.trim()) { setError('El nombre es obligatorio'); return }
@@ -621,7 +627,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
 
                   <button
                     onClick={handleContinuar}
-                    disabled={!meetsMin}
+                    disabled={!meetsMin || !meetsProductMinimums}
                     className="w-full py-4 bg-[var(--color-charcoal)] text-white text-xs tracking-[0.2em] uppercase hover:bg-[var(--color-stone)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Continuar →
