@@ -74,6 +74,7 @@ export function emailConfirmacionCliente({
   items,
   subtotal,
   shippingCost,
+  shippingPriceOnRequest,
   total,
   shippingLabel,
   paymentMethod,
@@ -85,6 +86,7 @@ export function emailConfirmacionCliente({
   items: OrderItem[]
   subtotal: number
   shippingCost: number
+  shippingPriceOnRequest?: boolean
   total: number
   shippingLabel: string
   paymentMethod: string
@@ -146,7 +148,7 @@ export function emailConfirmacionCliente({
       </tr>
       <tr>
         <td style="padding:5px 0;font-size:13px;color:#888;">Envío (${shippingLabel})</td>
-        <td style="padding:5px 0;text-align:right;font-size:13px;color:#888;">${shippingCost > 0 ? fmt(shippingCost) : 'Gratis'}</td>
+        <td style="padding:5px 0;text-align:right;font-size:13px;color:#888;">${shippingPriceOnRequest ? 'A convenir' : (shippingCost > 0 ? fmt(shippingCost) : 'Gratis')}</td>
       </tr>
       <tr>
         <td style="padding:14px 0 6px;border-top:1px solid #e8e4df;font-size:18px;font-weight:400;color:#1c1c1c;">Total</td>
@@ -190,6 +192,7 @@ export function emailNotificacionDueno({
   items,
   subtotal,
   shippingCost,
+  shippingPriceOnRequest,
   total,
   shippingLabel,
   paymentMethod,
@@ -206,6 +209,7 @@ export function emailNotificacionDueno({
   items: OrderItem[]
   subtotal: number
   shippingCost: number
+  shippingPriceOnRequest?: boolean
   total: number
   shippingLabel: string
   paymentMethod: string
@@ -264,7 +268,7 @@ export function emailNotificacionDueno({
       </tr>
       <tr>
         <td colspan="2" style="padding:4px 0;font-size:13px;color:#999;">Envío (${shippingLabel})</td>
-        <td style="padding:4px 0;text-align:right;font-size:13px;color:#999;">${shippingCost > 0 ? fmt(shippingCost) : 'Gratis'}</td>
+        <td style="padding:4px 0;text-align:right;font-size:13px;color:#999;">${shippingPriceOnRequest ? 'A convenir' : (shippingCost > 0 ? fmt(shippingCost) : 'Gratis')}</td>
       </tr>
       <tr>
         <td colspan="2" style="padding:10px 0 6px;font-size:17px;font-weight:700;color:#111;">Total</td>

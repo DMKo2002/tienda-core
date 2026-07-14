@@ -166,7 +166,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
         const methods = (conf?.custom_shipping ?? []).filter((m: any) => m.active && m.name)
         if (methods.length > 0) {
           setShippingMethod('custom_0')
-          setShippingCost(methods[0].price ?? 0)
+          setShippingCost(methods[0].priceOnRequest ? 0 : (methods[0].price ?? 0))
         }
       })
 
@@ -533,7 +533,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                                   checked={isSelected}
                                   onChange={() => {
                                     setShippingMethod(val)
-                                    setShippingCost(m.price ?? 0)
+                                    setShippingCost(m.priceOnRequest ? 0 : (m.price ?? 0))
                                     setCarrierChoice('')
                                     setCarrierOtherText('')
                                   }}
@@ -543,7 +543,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                                   <p className="text-sm font-light text-[var(--color-charcoal)]">{m.name}</p>
                                 </div>
                                 <span className="text-sm font-light text-[var(--color-charcoal)]">
-                                  {(m.price ?? 0) > 0 ? formatPrice(m.price) : 'Gratis'}
+                                  {m.priceOnRequest ? 'A convenir' : ((m.price ?? 0) > 0 ? formatPrice(m.price) : 'Gratis')}
                                 </span>
                               </label>
                               {isSelected && carriers.length > 0 && (
@@ -697,7 +697,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                   {selectedMethod && (
                     <div className="flex justify-between items-center text-xs text-[var(--color-stone)]">
                       <span>Envío ({selectedMethod.name})</span>
-                      <span>{shippingCost > 0 ? formatPrice(shippingCost) : 'Gratis'}</span>
+                      <span>{selectedMethod.priceOnRequest ? 'A convenir' : (shippingCost > 0 ? formatPrice(shippingCost) : 'Gratis')}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center pt-2 border-t border-[var(--color-border)]">
@@ -706,6 +706,11 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                       {formatPrice(totalConEnvio)}
                     </span>
                   </div>
+                  {selectedMethod?.priceOnRequest && (
+                    <p className="text-[11px] text-[var(--color-stone)] italic">
+                      El costo de envío no está incluido — te lo coordinamos aparte.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

@@ -60,11 +60,16 @@ export async function POST(req: NextRequest) {
     const customMethods = ((storeConf as any)?.custom_shipping ?? []).filter((m: any) => m.active && m.name)
     let validatedShippingCost = 0
     let shippingLabel = shippingMethod ?? ''
+    // Métodos "a convenir" no tienen precio fijo — se guarda shipping_cost=0
+    // (para no romper la suma del total) y este flag aparte, que es lo que
+    // decide si se muestra "$X"/"Gratis" o "A convenir" en checkout/PDF/email.
+    let shippingPriceOnRequest = false
 
     if (shippingMethod?.startsWith('custom_')) {
       const idx = Number(shippingMethod.split('_')[1])
       const method = customMethods[idx]
-      validatedShippingCost = method?.price ?? 0
+      shippingPriceOnRequest = !!method?.priceOnRequest
+      validatedShippingCost = shippingPriceOnRequest ? 0 : (method?.price ?? 0)
       shippingLabel = method?.name ?? shippingMethod
     }
 
@@ -288,6 +293,7 @@ export async function POST(req: NextRequest) {
           // después). carrier: transporte elegido, solo para métodos que lo piden.
           method_name: shippingLabel || null,
           carrier: shippingCarrier || null,
+          price_on_request: shippingPriceOnRequest,
         },
         notes: notes || null,
       })
@@ -334,6 +340,7 @@ export async function POST(req: NextRequest) {
       items: emailItems,
       subtotal,
       shippingCost: validatedShippingCost,
+      shippingPriceOnRequest,
       total,
       shippingLabel: shippingCarrier ? `${shippingLabel} — ${shippingCarrier}` : shippingLabel,
       paymentMethod,
