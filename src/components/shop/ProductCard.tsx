@@ -1,13 +1,16 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { ImageOff } from 'lucide-react'
+import { ImageOff, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface ProductCardProps {
   id: string
   name: string
   slug: string
   coverUrl?: string | null
+  /** Todas las imágenes del producto, ordenadas (portada primero) — habilita el mini carousel al hoverear */
+  images?: string[]
   retailPrice?: number | null
   retailCompareAt?: number | null
   wholesalePrice?: number | null
@@ -106,7 +109,7 @@ function isLight(hex: string): boolean {
 }
 
 export default function ProductCard({
-  id, name, slug, coverUrl, retailPrice, retailCompareAt, wholesalePrice,
+  id, name, slug, coverUrl, images = [], retailPrice, retailCompareAt, wholesalePrice,
   showWholesale = false, showPrices = true, priceVisibility = 'all', isRetailUser = false, index = 0, colors = [], sizes = []
 }: ProductCardProps) {
 
@@ -119,6 +122,33 @@ export default function ProductCard({
     ? Math.round((1 - retailPrice! / retailCompareAt!) * 100)
     : null
 
+  // Galería para el mini carousel al hoverear — si no vienen imágenes extra,
+  // se usa solo la portada (comportamiento anterior, sin flechas).
+  const gallery = images.length > 0 ? images : (coverUrl ? [coverUrl] : [])
+  const [hovering, setHovering] = useState(false)
+  const [hoverIdx, setHoverIdx] = useState(0)
+  const displayUrl = (hovering ? gallery[hoverIdx] : undefined) ?? coverUrl ?? gallery[0]
+
+  function handleMouseEnter() {
+    if (gallery.length === 0) return
+    setHovering(true)
+    setHoverIdx(gallery.length > 1 ? 1 : 0)
+  }
+  function handleMouseLeave() {
+    setHovering(false)
+    setHoverIdx(0)
+  }
+  function goPrev(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setHoverIdx(i => (i - 1 + gallery.length) % gallery.length)
+  }
+  function goNext(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setHoverIdx(i => (i + 1) % gallery.length)
+  }
+
   return (
     <Link
       href={`/tienda/${slug}`}
@@ -129,12 +159,14 @@ export default function ProductCard({
       <div
         className="product-img-wrap"
         style={{ aspectRatio: '3/4', width: '100%', backgroundColor: '#F2EEE9', marginBottom: '0.75rem', position: 'relative', overflow: 'hidden' }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
-        {coverUrl ? (
+        {displayUrl ? (
           <img
-            src={coverUrl}
+            src={displayUrl}
             alt={name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'opacity 0.3s' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'opacity 0.2s' }}
             loading={index < 6 ? 'eager' : 'lazy'}
           />
         ) : (
@@ -148,6 +180,49 @@ export default function ProductCard({
           <div style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'var(--color-charcoal)', color: 'white', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 8px' }}>
             -{discountPct}%
           </div>
+        )}
+
+        {/* Mini carousel — flechas visibles solo mientras se hoverea, si hay más de 1 imagen */}
+        {hovering && gallery.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={goPrev}
+              aria-label="Imagen anterior"
+              style={{
+                position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)',
+                width: 24, height: 24, borderRadius: '50%', border: 'none',
+                backgroundColor: 'rgba(255,255,255,0.85)', color: 'var(--color-charcoal)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              }}
+            >
+              <ChevronLeft size={14} strokeWidth={2} />
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              aria-label="Imagen siguiente"
+              style={{
+                position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                width: 24, height: 24, borderRadius: '50%', border: 'none',
+                backgroundColor: 'rgba(255,255,255,0.85)', color: 'var(--color-charcoal)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              }}
+            >
+              <ChevronRight size={14} strokeWidth={2} />
+            </button>
+            <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 4 }}>
+              {gallery.map((_, i) => (
+                <span
+                  key={i}
+                  style={{
+                    width: 4, height: 4, borderRadius: '50%',
+                    backgroundColor: i === hoverIdx ? 'white' : 'rgba(255,255,255,0.5)',
+                  }}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
 
