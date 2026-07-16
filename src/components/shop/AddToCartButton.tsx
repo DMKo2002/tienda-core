@@ -8,6 +8,9 @@ interface Variant {
   id: string
   size: string | null
   color: string | null
+  // Hex real elegido en Panel Admin (cuentagotas/selector) — independiente del
+  // nombre. Si no está seteado (variantes viejas), se deriva del nombre.
+  color_hex?: string | null
   stock: number
   price_rules: { type: string; price: number; compare_at_price?: number; min_qty: number; active: boolean }[]
 }
@@ -96,6 +99,14 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
     return sizeMatch && colorMatch
   })
 
+  // Hex real guardado para un color — busca cualquier variante con ese nombre
+  // que tenga color_hex seteado; si no hay ninguna (variante vieja, previa a
+  // esta funcionalidad), se deriva del nombre por fuzzy-match como antes.
+  function getVariantColorHex(colorName: string): string {
+    const withHex = product.variants.find(v => v.color === colorName && v.color_hex)
+    return withHex?.color_hex || getColorHex(colorName)
+  }
+
   const retailRule = selectedVariant?.price_rules?.find(p => p.type === 'retail' && p.active)
   const retailRegular = retailRule?.price
   const retailRebajado = (retailRule?.compare_at_price ?? 0) > 0 && (retailRule?.compare_at_price ?? 0) < (retailRegular ?? Infinity)
@@ -149,7 +160,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
       variantDesc: [selectedSize, selectedColor].filter(Boolean).join(' / '),
       size: selectedSize ?? '',
       color: selectedColor ?? '',
-      colorHex: selectedColor ? getColorHex(selectedColor) : undefined,
+      colorHex: selectedColor ? getVariantColorHex(selectedColor) : undefined,
       price: effectivePrice,
       priceType,
       imageUrl: product.coverUrl,
@@ -175,7 +186,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
           </p>
           <div className="flex gap-2.5 flex-wrap">
             {colors.map(color => {
-              const hex = getColorHex(color)
+              const hex = getVariantColorHex(color)
               const light = isLight(hex)
               const selected = selectedColor === color
               const available = isColorAvailable(color)
