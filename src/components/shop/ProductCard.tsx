@@ -175,6 +175,14 @@ export default function ProductCard({
           </div>
         )}
 
+        {/* Precarga silenciosa de la 2da imagen — sin esto, el browser recién la
+            pide al hacer hover y se nota un delay de red antes del swap. Al
+            renderizarla oculta acá, llega a la caché del navegador de antemano. */}
+        {gallery.length > 1 && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={gallery[1]} alt="" aria-hidden="true" loading="lazy" style={{ display: 'none' }} />
+        )}
+
         {/* Badge descuento */}
         {discountPct && (
           <div style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'var(--color-charcoal)', color: 'white', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 8px' }}>
