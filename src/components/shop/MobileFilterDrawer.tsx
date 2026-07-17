@@ -17,6 +17,9 @@ interface Category {
 interface Props {
   categories: Category[]
   availableColors: string[]
+  // Hex real guardado por variante (color -> color_hex), cuando existe —
+  // tiene prioridad sobre COLOR_MAP, igual que en CatalogFilters.tsx.
+  colorHexMap?: Record<string, string>
   availableSizes: string[]
   currentCat?: string
   currentOrden?: string
@@ -60,7 +63,7 @@ function SectionHeader({ label, open, onToggle, active }: { label: string; open:
 }
 
 export default function MobileFilterDrawer({
-  categories, availableColors, availableSizes,
+  categories, availableColors, colorHexMap, availableSizes,
   currentCat, currentOrden, currentQ, currentColor, currentTalle,
   currentPrecioMin, currentPrecioMax, currentDescuento,
   activeFilterCount,
@@ -178,7 +181,7 @@ export default function MobileFilterDrawer({
                     <div className="mt-3">
                       <div className="flex flex-wrap gap-2">
                         {availableColors.map(color => {
-                          const hex = getHex(color)
+                          const hex = colorHexMap?.[color] || getHex(color)
                           const light = isLight(hex)
                           const active = currentColor === color
                           return (

@@ -23,6 +23,10 @@ interface Category {
 interface CatalogFiltersProps {
   categories: Category[]
   availableColors: string[]
+  // Hex real guardado por variante (color -> color_hex), cuando existe —
+  // tiene prioridad sobre COLOR_MAP para que el swatch coincida con el color
+  // que el tenant eligió en Panel Admin, en vez de adivinar por nombre.
+  colorHexMap?: Record<string, string>
   availableSizes: string[]
   maxPrice: number
   currentCat?: string
@@ -75,7 +79,7 @@ function SectionHeader({ label, open, onToggle, active }: { label: string; open:
 }
 
 export default function CatalogFilters({
-  categories, availableColors, availableSizes, maxPrice,
+  categories, availableColors, colorHexMap, availableSizes, maxPrice,
   currentCat, currentOrden, currentQ, currentColor, currentTalle,
   currentPrecioMin, currentPrecioMax, currentDescuento,
 }: CatalogFiltersProps) {
@@ -240,7 +244,7 @@ export default function CatalogFilters({
             <div className="mt-3">
               <div className="flex flex-wrap gap-2">
                 {availableColors.map(color => {
-                  const hex = getColorHex(color)
+                  const hex = colorHexMap?.[color] || getColorHex(color)
                   const light = isLight(hex)
                   const active = currentColor === color
                   return (

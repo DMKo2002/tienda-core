@@ -21,10 +21,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { nombre, apellido, email, password, tipo, empresa, cuit, direccion, provincia, localidad, turnstileToken } = body
-    if (!nombre || !email || !password || !tipo)
+    if (!nombre || !email || !tipo)
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 })
-    if (password.length < 8)
-      return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 })
     if (tipo === 'wholesale' && (!empresa || !cuit))
       return NextResponse.json({ error: 'Empresa y CUIT son obligatorios para cuentas mayoristas' }, { status: 400 })
     if (tipo === 'wholesale' && (!direccion || !provincia || !localidad))
@@ -61,8 +59,7 @@ export async function POST(req: NextRequest) {
     if (existingCustomer?.auth_user_id) {
       // Excepción: una cuenta minorista puede "reregistrarse" como mayorista con
       // el mismo mail si completa los datos de mayorista — lo tratamos como un
-      // upgrade en vez de rechazarlo. Requiere la contraseña correcta (se valida
-      // más abajo al intentar el login con el mail disfrazado).
+      // upgrade en vez de rechazarlo.
       const canUpgradeToWholesale =
         existingCustomer.type === 'retail' &&
         tipo === 'wholesale' &&
@@ -71,7 +68,59 @@ export async function POST(req: NextRequest) {
       if (!canUpgradeToWholesale) {
         return NextResponse.json({ error: 'Ya tenés una cuenta en esta tienda. Iniciá sesión.' }, { status: 409 })
       }
+
+      // Confirmamos identidad con la SESIÓN YA AUTENTICADA (cookies), no
+      // re-tipeando la contraseña — el formulario de upgrade se usa estando
+      // logueado (precarga los datos vía supabase.auth.getUser() del lado
+      // del cliente) y nunca le aclaraba al usuario que ahí tenía que poner
+      // su contraseña ACTUAL. La mayoría escribía una contraseña nueva, el
+      // reintento de login fallaba en silencio, y el tipo de cuenta nunca se
+      // actualizaba a mayorista aunque el resto del formulario se mandara
+      // bien — el bug reportado ("pasa a mayorista y sigue sin ver precios").
+      const supabase = await createServerSupabase()
+      const { data: { user: sessionUser } } = await supabase.auth.getUser()
+      if (!sessionUser || sessionUser.id !== existingCustomer.auth_user_id) {
+        return NextResponse.json({ error: 'Iniciá sesión con tu cuenta antes de pasar a mayorista.' }, { status: 401 })
+      }
+
+      const { error: upgradeErr } = await service.from('customers').update({
+        full_name: nombre,
+        last_name: apellido ?? null,
+        type: tipo,
+        company_name: empresa ?? null,
+        cuit: cuit ?? null,
+        address_street: direccion ?? null,
+        address_province: provincia ?? null,
+        address_city: localidad ?? null,
+        active: true,
+      }).eq('id', existingCustomer.id).eq('tenant_id', tenantId)
+      if (upgradeErr) {
+        console.error('[registro] error actualizando a mayorista:', upgradeErr.message)
+        return NextResponse.json({ error: 'No se pudo actualizar la cuenta. Intentá de nuevo.' }, { status: 500 })
+      }
+
+      // Aviso por mail, no bloqueante — si falla el envío el upgrade ya quedó guardado.
+      const [{ data: tenantRow }, { data: emailConfigRow }] = await Promise.all([
+        service.from('tenants').select('name').eq('id', tenantId).single(),
+        service.from('store_config').select('email_from_name, reply_to').eq('tenant_id', tenantId).single(),
+      ])
+      const upgradeStoreName = tenantRow?.name ?? 'Tienda'
+      await sendEmail({
+        to: normalizedEmail,
+        subject: `Tu cuenta en ${upgradeStoreName} ahora es mayorista`,
+        html: emailBienvenidaCliente({ storeName: upgradeStoreName, firstName: nombre, storeUrl: siteUrl }),
+        fromName: emailConfigRow?.email_from_name ?? upgradeStoreName,
+        ...(emailConfigRow?.reply_to ? { replyTo: emailConfigRow.reply_to } : {}),
+      }).catch(e => console.error('[email upgrade] error:', e))
+
+      return NextResponse.json({ ok: true, confirmacion: false, upgraded: true })
     }
+
+    // A partir de acá es alta de cuenta nueva — sí hace falta contraseña.
+    if (!password)
+      return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 })
+    if (password.length < 8)
+      return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 })
 
     // Mail disfrazado: cada tienda tiene su propia cuenta de Auth independiente
     // (propia contraseña) aunque el cliente use el mismo mail real en todas.
