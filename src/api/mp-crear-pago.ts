@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         description: `Pedido ${String(order_id).slice(0, 8).toUpperCase()}`,
         installments: Number(installments) || 1,
         payment_method_id,
-        issuer_id: issuer_id ? String(issuer_id) : undefined,
+        issuer_id: issuer_id ? Number(issuer_id) : undefined,
         payer: payer ? {
           email: payer.email,
           identification: payer.identification,
