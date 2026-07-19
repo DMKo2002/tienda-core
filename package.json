@@ -22,6 +22,7 @@
     "./api/crear-pedido": "./src/api/crear-pedido.ts",
     "./api/nav-categories": "./src/api/nav-categories.ts",
     "./api/mp-preferencia": "./src/api/mp-preferencia.ts",
+    "./api/mp-crear-pago": "./src/api/mp-crear-pago.ts",
     "./api/auth-callback": "./src/api/auth-callback.ts",
     "./api/recuperar-password": "./src/api/recuperar-password.ts",
     "./api/login": "./src/api/login.ts",

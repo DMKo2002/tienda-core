@@ -6,6 +6,7 @@ import { useCartValidation } from './useCartValidation'
 import Link from 'next/link'
 import { ArrowLeft, CreditCard, Building2, ImageOff, Check } from 'lucide-react'
 import { createClient, TENANT_ID } from '../../lib/supabase'
+import MercadoPagoBrick from './MercadoPagoBrick'
 
 const PROVINCIAS = [
   'Buenos Aires', 'Ciudad Autónoma de Buenos Aires', 'Catamarca', 'Chaco', 'Chubut',
@@ -113,7 +114,9 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
   const { items, total, clearCart } = useCart()
   const supabase = createClient()
 
-  const [step, setStep] = useState<'datos' | 'pago' | 'qr'>('datos')
+  const [step, setStep] = useState<'datos' | 'pago' | 'tarjeta' | 'confirmacion' | 'qr'>('datos')
+  const [mpPaymentStatus, setMpPaymentStatus] = useState<'approved' | 'pending' | 'rejected' | null>(null)
+  const [mpStatusDetail, setMpStatusDetail] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [storeConfig, setStoreConfig] = useState<any>(null)
@@ -147,7 +150,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
 
     // Cargar config de la tienda
     supabase.from('store_config')
-      .select('mp_enabled, transfer_enabled, transfer_cbu, transfer_alias, whatsapp_number, min_order_amount, custom_shipping, logo_url, notification_email, instagram_url, facebook_url, tiktok_url, branches')
+      .select('mp_enabled, mp_public_key, transfer_enabled, transfer_cbu, transfer_alias, whatsapp_number, min_order_amount, custom_shipping, logo_url, notification_email, instagram_url, facebook_url, tiktok_url, branches')
       .eq('tenant_id', tenantId)
       .single()
       .then(({ data }) => {
@@ -297,27 +300,28 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
   async function handleMercadoPago() {
     const order = await createOrder('mercadopago')
     if (!order) return
-    try {
-      const res = await fetch('/api/mp/crear-preferencia', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tenant_id: TENANT_ID(), order_id: order.id,
-          items: items.map(item => ({
-            variant_id: item.variantId, name: item.productName,
-            variant_desc: item.variantDesc, quantity: item.quantity, unit_price: item.price,
-          })),
-          payer: { name: `${nombre} ${apellido}`, email, phone },
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      clearCart()
-      window.location.href = data.init_point ?? data.sandbox_init_point
-    } catch (err: any) {
-      setError(err.message ?? 'Error al iniciar el pago')
-      setLoading(false)
-    }
+    setCurrentOrderId(order.id)
+    setOrderTotal(totalConEnvio)
+    setMpPaymentStatus(null)
+    setMpStatusDetail(null)
+    setLoading(false)
+    setStep('tarjeta')
+  }
+
+  function handleMpApproved() {
+    clearCart()
+    setMpPaymentStatus('approved')
+    setStep('confirmacion')
+  }
+  function handleMpPending() {
+    clearCart()
+    setMpPaymentStatus('pending')
+    setStep('confirmacion')
+  }
+  function handleMpRejected(detail?: string) {
+    setMpPaymentStatus('rejected')
+    setMpStatusDetail(detail ?? null)
+    // Se queda en el paso 'tarjeta' — el Brick sigue montado para reintentar con otra tarjeta.
   }
 
   async function handleTransferencia() {
@@ -358,7 +362,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
     branches: branding.branches,
   }
 
-  if (items.length === 0 && step !== 'qr') {
+  if (items.length === 0 && step !== 'qr' && step !== 'confirmacion') {
     return (
       <>
         <Navbar {...navbarProps} />
@@ -460,6 +464,44 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
     )
   }
 
+  // ── PANTALLA CONFIRMACIÓN MERCADOPAGO (Brick) ────────────
+  if (step === 'confirmacion') {
+    const isApproved = mpPaymentStatus === 'approved'
+    const isPending = mpPaymentStatus === 'pending'
+    return (
+      <>
+        <Navbar {...navbarProps} />
+        <main className="pt-28 min-h-screen flex items-center justify-center">
+          <div className="max-w-sm w-full mx-auto px-6 text-center">
+            <p className="text-xs tracking-[0.2em] uppercase text-[var(--color-stone)] mb-2">
+              {isApproved ? 'Pago aprobado' : isPending ? 'Pago pendiente' : 'Pago'}
+            </p>
+            <h1 className="font-display text-4xl font-light text-[var(--color-charcoal)] mb-1">
+              {formatPrice(orderTotal)}
+            </h1>
+            {currentOrderId && (
+              <p className="text-xs text-[var(--color-stone)] font-mono mb-8">
+                Pedido #{currentOrderId.slice(0, 8).toUpperCase()}
+              </p>
+            )}
+            <p className="text-sm text-[var(--color-stone)] font-light leading-relaxed mb-8">
+              {isApproved
+                ? 'Tu pago se acreditó correctamente. Te enviamos un email con los detalles del pedido.'
+                : 'Tu pago quedó pendiente de confirmación. Te vamos a avisar por email apenas se acredite.'}
+            </p>
+            <Link
+              href={shopHref}
+              className="block w-full py-3.5 bg-[var(--color-charcoal)] text-white text-xs tracking-[0.2em] uppercase text-center hover:bg-[var(--color-stone)] transition-colors"
+            >
+              Seguir comprando
+            </Link>
+          </div>
+        </main>
+        <Footer {...footerProps} />
+      </>
+    )
+  }
+
   // ── CHECKOUT NORMAL ──────────────────────────────────────
   return (
     <>
@@ -472,7 +514,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
               <ArrowLeft size={20} strokeWidth={1.5} />
             </Link>
             <h1 className="font-display text-4xl font-light text-[var(--color-charcoal)]">
-              {step === 'datos' ? 'Tus datos' : 'Método de pago'}
+              {step === 'datos' ? 'Tus datos' : step === 'tarjeta' ? 'Pagar con tarjeta' : 'Método de pago'}
             </h1>
           </div>
 
@@ -667,6 +709,33 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                     ← Volver a mis datos
                   </button>
                 </div>
+              )}
+
+              {step === 'tarjeta' && storeConfig?.mp_public_key && currentOrderId && (
+                <div className="space-y-4">
+                  {mpPaymentStatus === 'rejected' && (
+                    <p className="text-sm text-red-500">
+                      El pago no pudo procesarse{mpStatusDetail ? ` (${mpStatusDetail})` : ''}. Probá con otra tarjeta.
+                    </p>
+                  )}
+                  <MercadoPagoBrick
+                    publicKey={storeConfig.mp_public_key}
+                    amount={orderTotal}
+                    orderId={currentOrderId}
+                    onApproved={handleMpApproved}
+                    onPending={handleMpPending}
+                    onRejected={handleMpRejected}
+                  />
+                  <button onClick={() => setStep('pago')} className="text-xs text-[var(--color-stone)] hover:text-[var(--color-charcoal)] transition-colors">
+                    ← Volver a métodos de pago
+                  </button>
+                </div>
+              )}
+
+              {step === 'tarjeta' && !storeConfig?.mp_public_key && (
+                <p className="text-sm text-red-500">
+                  Falta configurar la Public Key de MercadoPago en el panel de esta tienda.
+                </p>
               )}
             </div>
 

@@ -95,6 +95,7 @@ src/app/api/auth/registro/route.ts
 src/app/api/checkout/crear-pedido/route.ts
 src/app/api/nav-categories/route.ts
 src/app/api/mp/crear-preferencia/route.ts
+src/app/api/mp/crear-pago/route.ts
 src/app/auth/callback/route.ts
 ```
 
@@ -151,6 +152,9 @@ export { GET } from '@creart/tienda-core/api/nav-categories'
 
 // app/api/mp/crear-preferencia/route.ts
 export { POST } from '@creart/tienda-core/api/mp-preferencia'
+
+// app/api/mp/crear-pago/route.ts (Checkout Bricks — pago con tarjeta embebido, sin redirect)
+export { POST } from '@creart/tienda-core/api/mp-crear-pago'
 
 // app/auth/callback/route.ts
 export { GET } from '@creart/tienda-core/api/auth-callback'
