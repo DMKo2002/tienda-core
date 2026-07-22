@@ -90,6 +90,7 @@ src/components/shop/CatalogFilters.tsx
 src/components/shop/MobileFilterDrawer.tsx
 src/components/shop/ProductGallery.tsx
 src/components/cuenta/LogoutButton.tsx
+src/app/cuenta/registro/page.tsx
 src/components/layout/CookieBanner.tsx
 src/app/api/auth/registro/route.ts
 src/app/api/checkout/crear-pedido/route.ts
@@ -137,6 +138,9 @@ export { default } from '@creart/tienda-core/ProductGallery'
 
 // components/cuenta/LogoutButton.tsx
 export { default } from '@creart/tienda-core/LogoutButton'
+
+// app/cuenta/registro/page.tsx
+export { default } from '@creart/tienda-core/RegistroPage'
 
 // components/layout/CookieBanner.tsx
 export { default } from '@creart/tienda-core/CookieBanner'

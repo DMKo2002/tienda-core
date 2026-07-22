@@ -12,6 +12,7 @@
     "./MobileFilterDrawer": "./src/components/shop/MobileFilterDrawer.tsx",
     "./ProductGallery": "./src/components/shop/ProductGallery.tsx",
     "./LogoutButton": "./src/components/cuenta/LogoutButton.tsx",
+    "./RegistroPage": "./src/components/cuenta/RegistroPage.tsx",
     "./CookieBanner": "./src/components/layout/CookieBanner.tsx",
     "./supabase-server": "./src/lib/supabase-server.ts",
     "./supabase": "./src/lib/supabase.ts",
@@ -37,7 +38,8 @@
     "react-dom": ">=18.0.0",
     "@supabase/ssr": ">=0.5.0",
     "@supabase/supabase-js": ">=2.0.0",
-    "lucide-react": ">=0.4.0"
+    "lucide-react": ">=0.4.0",
+    "react-turnstile": ">=1.0.0"
   },
   "devDependencies": {
     "@types/node": "^20",

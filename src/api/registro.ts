@@ -80,7 +80,11 @@ export async function POST(req: NextRequest) {
       const supabase = await createServerSupabase()
       const { data: { user: sessionUser } } = await supabase.auth.getUser()
       if (!sessionUser || sessionUser.id !== existingCustomer.auth_user_id) {
-        return NextResponse.json({ error: 'Iniciá sesión con tu cuenta antes de pasar a mayorista.' }, { status: 401 })
+        // RegistroPage (server) ya exige sesión activa antes de mostrar este
+        // formulario, así que llegar acá con sesión inválida es el caso raro
+        // de que haya vencido mientras se completaba el form — no un rechazo
+        // del pedido en sí. El mensaje lo aclara para no leerse como error.
+        return NextResponse.json({ error: 'Tu sesión expiró mientras completabas el formulario. Volvé a iniciar sesión e intentá de nuevo.' }, { status: 401 })
       }
 
       const { error: upgradeErr } = await service.from('customers').update({
