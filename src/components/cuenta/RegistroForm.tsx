@@ -138,22 +138,37 @@ export default function RegistroForm({ isUpgrade, initialNombre = '', initialApe
   }
 
   if (exito) {
+    // Alta nueva que todavía necesita que confirmen el mail: es el caso que
+    // más se presta a confusión (la cuenta "existe" pero no sirve para nada
+    // hasta que hacen click en el link del correo, y ese paso se olvida
+    // fácil). Por eso tiene su propio ícono/copy en vez de reusar el de
+    // "listo" — que sí aplica cuando no hace falta confirmación (o para el
+    // upgrade a mayorista, que no manda mail de confirmación).
+    const pendienteDeConfirmar = !isUpgrade && confirmacion
+
     return (
       <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
           <div className="w-16 h-16 bg-[var(--color-charcoal)] rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
+            {pendienteDeConfirmar ? (
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="m2 7 10 6 10-6" />
+              </svg>
+            ) : (
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            )}
           </div>
           <h1 className="font-display text-3xl font-light text-[var(--color-charcoal)] mb-3">
-            {isUpgrade ? '¡Cuenta actualizada!' : '¡Registro exitoso!'}
+            {isUpgrade ? '¡Cuenta actualizada!' : pendienteDeConfirmar ? 'Falta un paso' : '¡Registro exitoso!'}
           </h1>
           <p className="text-sm text-[var(--color-stone)] font-light leading-relaxed mb-6">
             {isUpgrade
               ? <>Tu cuenta ahora es mayorista. Ya podés ver los precios y condiciones de mayorista.</>
-              : confirmacion
-                ? <>Te enviamos un email de bienvenida a <strong>{form.email}</strong>. Si hay un link de confirmación, hacé click para activar tu cuenta.</>
+              : pendienteDeConfirmar
+                ? <>Te enviamos un email a <strong>{form.email}</strong> para confirmar tu cuenta. <strong>Tu registro recién queda activo cuando hacés click en el link de ese correo</strong> — hasta entonces no vas a poder iniciar sesión. Si no lo ves en unos minutos, revisá spam / correo no deseado.</>
                 : <>Tu cuenta fue creada. Recibiste un email de bienvenida en <strong>{form.email}</strong>. Ya podés iniciar sesión.</>
             }
           </p>
