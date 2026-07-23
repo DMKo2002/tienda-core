@@ -396,53 +396,66 @@ export async function POST(req: NextRequest) {
     const replyTo          = (storeConf as any)?.reply_to ?? undefined
     const ownerEmail       = (storeConf as any)?.notification_email
 
-    // Al cliente
-    sendEmail({
-      to: email.trim(),
-      subject: `Tu pedido #${order.id.slice(0, 8).toUpperCase()} fue recibido — ${storeName}`,
-      html: emailConfirmacionCliente({
-        ...emailPayload,
-        customIntro: (storeConf as any)?.email_intro_pedido_recibido ?? null,
-      }),
-      fromName: emailFromName,
-      replyTo,
-    }).then(({ ok }) => {
-      supabase.from('notifications_log').insert({
-        tenant_id: TENANT_ID(),
-        order_id: order.id,
-        channel: 'email',
-        recipient: email.trim(),
-        subject: `Confirmación pedido #${order.id.slice(0, 8).toUpperCase()}`,
-        status: ok ? 'sent' : 'failed',
-      })
-    }).catch(e => console.error('[email cliente]', e))
+    // IMPORTANTE: estos envíos se esperan (await) antes de responder. En una
+    // función serverless de Vercel, un fetch() "fire-and-forget" (sin await)
+    // puede quedar cortado a mitad de camino apenas se envía la respuesta al
+    // cliente — el proceso no tiene garantía de seguir vivo para I/O pendiente.
+    // Eso hacía que el mail a veces no llegara aunque el pedido se creara bien.
+    const emailTasks: Promise<void>[] = []
 
-    // Al dueño
-    if (ownerEmail) {
+    // Al cliente
+    emailTasks.push(
       sendEmail({
-        to: ownerEmail,
-        subject: `🛍️ Nuevo pedido #${order.id.slice(0, 8).toUpperCase()} — ${storeName}`,
-        html: emailNotificacionDueno({
+        to: email.trim(),
+        subject: `Tu pedido #${order.id.slice(0, 8).toUpperCase()} fue recibido — ${storeName}`,
+        html: emailConfirmacionCliente({
           ...emailPayload,
-          customerEmail: email.trim(),
-          customerPhone: phone || null,
-          addressStreet: addressStreet || null,
-          addressCity: addressCity || null,
-          addressProvince: addressProvince || null,
-          addressZip: addressZip || null,
+          customIntro: (storeConf as any)?.email_intro_pedido_recibido ?? null,
         }),
         fromName: emailFromName,
+        replyTo,
       }).then(({ ok }) => {
-        supabase.from('notifications_log').insert({
+        return supabase.from('notifications_log').insert({
           tenant_id: TENANT_ID(),
           order_id: order.id,
           channel: 'email',
-          recipient: ownerEmail,
-          subject: `Nuevo pedido #${order.id.slice(0, 8).toUpperCase()} — ${storeName}`,
+          recipient: email.trim(),
+          subject: `Confirmación pedido #${order.id.slice(0, 8).toUpperCase()}`,
           status: ok ? 'sent' : 'failed',
-        })
-      }).catch(e => console.error('[email dueño]', e))
+        }).then(() => {})
+      }).catch(e => console.error('[email cliente]', e))
+    )
+
+    // Al dueño
+    if (ownerEmail) {
+      emailTasks.push(
+        sendEmail({
+          to: ownerEmail,
+          subject: `🛍️ Nuevo pedido #${order.id.slice(0, 8).toUpperCase()} — ${storeName}`,
+          html: emailNotificacionDueno({
+            ...emailPayload,
+            customerEmail: email.trim(),
+            customerPhone: phone || null,
+            addressStreet: addressStreet || null,
+            addressCity: addressCity || null,
+            addressProvince: addressProvince || null,
+            addressZip: addressZip || null,
+          }),
+          fromName: emailFromName,
+        }).then(({ ok }) => {
+          return supabase.from('notifications_log').insert({
+            tenant_id: TENANT_ID(),
+            order_id: order.id,
+            channel: 'email',
+            recipient: ownerEmail,
+            subject: `Nuevo pedido #${order.id.slice(0, 8).toUpperCase()} — ${storeName}`,
+            status: ok ? 'sent' : 'failed',
+          }).then(() => {})
+        }).catch(e => console.error('[email dueño]', e))
+      )
     }
+
+    await Promise.all(emailTasks)
 
     return NextResponse.json({ ok: true, order })
 
