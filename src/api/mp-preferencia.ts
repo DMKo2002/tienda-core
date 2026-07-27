@@ -41,6 +41,17 @@ export async function POST(req: NextRequest) {
     const client = new MercadoPagoConfig({ accessToken })
     const preference = new Preference(client)
 
+    // Tope real de cuotas: el mínimo entre products.max_installments de los
+    // productos incluidos en esta preferencia.
+    const variantIds = items.map((it: any) => it.variant_id ?? it.id).filter(Boolean)
+    const { data: variantRows } = variantIds.length > 0
+      ? await supabase.from('variants').select('id, products(max_installments)').in('id', variantIds)
+      : { data: [] as any[] }
+    const installmentCaps = (variantRows ?? [])
+      .map((v: any) => v.products?.max_installments)
+      .filter((n: any) => typeof n === 'number' && n > 0)
+    const installmentsCap = installmentCaps.length > 0 ? Math.min(...installmentCaps) : undefined
+
     // En multi-tenant usamos el host del request para que cada tienda vuelva a su propio
     // dominio después de pagar. NEXT_PUBLIC_APP_URL es build-time y sería el mismo para
     // todos los tenants (mismo bug que tenía el sitemap — ver crear-pedido.ts / registro.ts).
@@ -80,6 +91,7 @@ export async function POST(req: NextRequest) {
           auto_return: 'approved' as const,
         }),
         ...(notificationUrl && { notification_url: notificationUrl }),
+        ...(installmentsCap && { payment_methods: { installments: installmentsCap } }),
         external_reference: order_id,
         statement_descriptor: 'Tienda Online',
       },

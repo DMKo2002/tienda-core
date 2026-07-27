@@ -26,9 +26,10 @@ export async function POST(req: NextRequest) {
     // así que se lee con el service client para no depender de permisos de anon.
     const supabase = createServiceSupabase()
 
-    const [{ data: config }, { data: order }] = await Promise.all([
+    const [{ data: config }, { data: order }, { data: orderItems }] = await Promise.all([
       supabase.from('store_config').select('mp_access_token, mp_enabled').eq('tenant_id', TENANT_ID()).single(),
       supabase.from('orders').select('id, tenant_id, total, payment_status').eq('id', order_id).single(),
+      supabase.from('order_items').select('variants(products(max_installments))').eq('order_id', order_id),
     ])
 
     if (!config?.mp_enabled) {
@@ -56,12 +57,25 @@ export async function POST(req: NextRequest) {
     const panelUrl = process.env.NEXT_PUBLIC_PANEL_URL
     const notificationUrl = panelUrl ? `${panelUrl}/api/mp/webhook?tenant_id=${TENANT_ID()}` : undefined
 
+    // Tope real de cuotas: el mínimo entre products.max_installments de los
+    // productos de este pedido. Se recalcula acá (server-side) en vez de
+    // confiar en lo que mandó el Brick del cliente — un cliente modificado
+    // podría mandar cualquier `installments`.
+    const caps = (orderItems ?? [])
+      .map((it: any) => it.variants?.products?.max_installments)
+      .filter((n: any) => typeof n === 'number' && n > 0)
+    const installmentsCap = caps.length > 0 ? Math.min(...caps) : null
+    const requestedInstallments = Number(installments) || 1
+    const effectiveInstallments = installmentsCap
+      ? Math.min(requestedInstallments, installmentsCap)
+      : requestedInstallments
+
     const result = await payment.create({
       body: {
         transaction_amount: Number(order.total),
         token,
         description: `Pedido ${String(order_id).slice(0, 8).toUpperCase()}`,
-        installments: Number(installments) || 1,
+        installments: effectiveInstallments,
         payment_method_id,
         issuer_id: issuer_id ? Number(issuer_id) : undefined,
         payer: payer ? {

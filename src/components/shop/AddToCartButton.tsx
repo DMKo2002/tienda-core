@@ -25,9 +25,15 @@ interface AddToCartButtonProps {
     name: string
     variants: Variant[]
     coverUrl: string | null
+    // Tope de cuotas propio de este producto (null = sin tope propio).
+    max_installments?: number | null
   }
   sizes: string[]
   colors: string[]
+  // Cuántas cuotas sin interés activó el tenant en su propia cuenta de
+  // Mercado Pago (store_config.interest_free_installments). null/0 = no ofrece.
+  // Es informativo (cartel) — no activa nada por sí solo.
+  interestFreeInstallments?: number | null
 }
 
 const formatPrice = (n: number) =>
@@ -62,7 +68,7 @@ function isLight(hex: string): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 > 180
 }
 
-export default function AddToCartButton({ product, sizes, colors, showPrices = true, ignoreStock = false, isWholesale = false, minQty = 1 }: AddToCartButtonProps) {
+export default function AddToCartButton({ product, sizes, colors, showPrices = true, ignoreStock = false, isWholesale = false, minQty = 1, interestFreeInstallments = null }: AddToCartButtonProps) {
   const { addItem, items: cartItems } = useCart()
   const [selectedSize, setSelectedSize] = useState<string | null>(sizes[0] ?? null)
   const [selectedColor, setSelectedColor] = useState<string | null>(colors[0] ?? null)
@@ -131,6 +137,15 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
 
   const priceType: 'retail' | 'wholesale' = wholesalePrice && projectedQty >= wholesalePrice.min_qty
     ? 'wholesale' : 'retail'
+
+  // Cartel de cuotas sin interés: el mínimo entre lo que el tenant activó en
+  // su propia cuenta de Mercado Pago (interestFreeInstallments) y el tope
+  // propio de este producto (product.max_installments) — no tiene sentido
+  // anunciar más cuotas sin interés que el total de cuotas que se van a
+  // ofrecer para este producto puntual.
+  const effectiveInterestFree = interestFreeInstallments && interestFreeInstallments > 0
+    ? (product.max_installments ? Math.min(interestFreeInstallments, product.max_installments) : interestFreeInstallments)
+    : 0
 
   function handleAddToCart() {
     if (!selectedVariant || !effectivePrice) return
@@ -289,6 +304,12 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
 
       {!inStock && !ignoreStock && (
         <p className="text-xs text-[var(--color-stone)] tracking-wide">Sin stock disponible</p>
+      )}
+
+      {effectiveInterestFree > 1 && (
+        <p className="text-xs text-[var(--color-stone)] tracking-wide">
+          Hasta {effectiveInterestFree} cuotas sin interés con Mercado Pago
+        </p>
       )}
 
       <button

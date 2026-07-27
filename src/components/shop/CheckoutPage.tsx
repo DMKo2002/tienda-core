@@ -125,6 +125,9 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
   const [orderTotal, setOrderTotal] = useState(0)
   const [emailLocked, setEmailLocked] = useState(false)
   const [showTransferConfirm, setShowTransferConfirm] = useState(false)
+  // Tope de cuotas para el Brick de tarjeta — mínimo de max_installments entre
+  // los productos del carrito. null = ninguno tiene tope propio.
+  const [installmentsCap, setInstallmentsCap] = useState<number | null>(null)
 
   const [nombre, setNombre] = useState('')
   const [apellido, setApellido] = useState('')
@@ -207,6 +210,24 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
         if (cust.address_province) setAddressProvince(cust.address_province)
       }
     })
+  }, [])
+
+  // Tope de cuotas a mostrar en el Brick de tarjeta: el mínimo entre
+  // products.max_installments de todos los productos del carrito. Se calcula
+  // una sola vez con los items con los que se entró al checkout (no cambian
+  // durante el flujo de pago). Solo informativo para la UI — el tope real
+  // que importa se vuelve a calcular server-side en /api/mp/crear-pago.
+  useEffect(() => {
+    const productIds = [...new Set(items.map(i => i.productId).filter(Boolean))]
+    if (productIds.length === 0) return
+    supabase.from('products').select('id, max_installments').in('id', productIds)
+      .then(({ data }) => {
+        const caps = (data ?? [])
+          .map((p: any) => p.max_installments)
+          .filter((n: any) => typeof n === 'number' && n > 0)
+        setInstallmentsCap(caps.length > 0 ? Math.min(...caps) : null)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const activeCustomMethods: any[] = ((storeConfig as any)?.custom_shipping ?? []).filter((m: any) => m.active && m.name)
@@ -725,6 +746,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                     onApproved={handleMpApproved}
                     onPending={handleMpPending}
                     onRejected={handleMpRejected}
+                    maxInstallments={installmentsCap}
                   />
                   <button onClick={() => setStep('pago')} className="text-xs text-[var(--color-stone)] hover:text-[var(--color-charcoal)] transition-colors">
                     ← Volver a métodos de pago

@@ -13,6 +13,10 @@ interface Props {
   onApproved: () => void
   onPending: () => void
   onRejected: (detail?: string) => void
+  // Tope de cuotas a ofrecer en el selector del Brick — viene del mínimo de
+  // products.max_installments entre los productos del carrito. undefined/null
+  // = sin tope propio (se usa el máximo que permita Mercado Pago).
+  maxInstallments?: number | null
 }
 
 const CONTAINER_ID = 'mp-card-payment-brick'
@@ -46,7 +50,7 @@ function loadMercadoPagoSdk(): Promise<void> {
  * Tokeniza la tarjeta en el browser con la Public Key y manda el token a
  * /api/mp/crear-pago, que crea el pago real con el Access Token (backend).
  */
-export default function MercadoPagoBrick({ publicKey, amount, orderId, onApproved, onPending, onRejected }: Props) {
+export default function MercadoPagoBrick({ publicKey, amount, orderId, onApproved, onPending, onRejected, maxInstallments }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const controllerRef = useRef<any>(null)
@@ -65,6 +69,9 @@ export default function MercadoPagoBrick({ publicKey, amount, orderId, onApprove
 
         controllerRef.current = await bricksBuilder.create('cardPayment', CONTAINER_ID, {
           initialization: { amount },
+          ...(maxInstallments && maxInstallments > 0
+            ? { customization: { paymentMethods: { maxInstallments } } }
+            : {}),
           callbacks: {
             onReady: () => {},
             onError: (brickError: any) => {
@@ -116,7 +123,7 @@ export default function MercadoPagoBrick({ publicKey, amount, orderId, onApprove
       controllerRef.current?.unmount?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [publicKey, amount, orderId])
+  }, [publicKey, amount, orderId, maxInstallments])
 
   return (
     <div className="space-y-3">
