@@ -153,7 +153,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
 
     // Cargar config de la tienda
     supabase.from('store_config')
-      .select('mp_enabled, mp_public_key, transfer_enabled, transfer_cbu, transfer_alias, whatsapp_number, min_order_amount, custom_shipping, logo_url, notification_email, instagram_url, facebook_url, tiktok_url, branches')
+      .select('mp_enabled, mp_public_key, transfer_enabled, transfer_cbu, transfer_alias, whatsapp_number, min_order_amount, custom_shipping, logo_url, notification_email, instagram_url, facebook_url, tiktok_url, branches, interest_free_installments')
       .eq('tenant_id', tenantId)
       .single()
       .then(({ data }) => {
@@ -229,6 +229,15 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Cartel de cuotas sin interés para el paso "Elegí cómo pagar" — mismo
+  // criterio que en AddToCartButton: el mínimo entre lo que el tenant activó
+  // en su cuenta de Mercado Pago (store_config.interest_free_installments) y
+  // el tope de cuotas de los productos del carrito (installmentsCap).
+  const tenantInterestFree = (storeConfig as any)?.interest_free_installments
+  const effectiveInterestFree = tenantInterestFree && tenantInterestFree > 0
+    ? (installmentsCap ? Math.min(tenantInterestFree, installmentsCap) : tenantInterestFree)
+    : 0
 
   const activeCustomMethods: any[] = ((storeConfig as any)?.custom_shipping ?? []).filter((m: any) => m.active && m.name)
   const selectedMethodIdx = shippingMethod.startsWith('custom_') ? Number(shippingMethod.split('_')[1]) : -1
@@ -708,7 +717,10 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-light text-[var(--color-charcoal)]">MercadoPago</p>
-                        <p className="text-xs text-[var(--color-stone)] mt-0.5">Tarjeta, débito, QR, cuotas</p>
+                        <p className="text-xs text-[var(--color-stone)] mt-0.5">
+                          Tarjeta, débito, QR, cuotas
+                          {effectiveInterestFree > 1 && ` · Hasta ${effectiveInterestFree} cuotas sin interés`}
+                        </p>
                       </div>
                       <span className="text-[var(--color-stone)]">→</span>
                     </button>
