@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ImageOff, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface ProductCardProps {
@@ -163,11 +164,13 @@ export default function ProductCard({
         onMouseLeave={handleMouseLeave}
       >
         {displayUrl ? (
-          <img
+          <Image
             src={displayUrl}
             alt={name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'opacity 0.2s' }}
-            loading={index < 6 ? 'eager' : 'lazy'}
+            fill
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            style={{ objectFit: 'cover', transition: 'opacity 0.2s' }}
+            priority={index < 6}
           />
         ) : (
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -179,8 +182,7 @@ export default function ProductCard({
             pide al hacer hover y se nota un delay de red antes del swap. Al
             renderizarla oculta acá, llega a la caché del navegador de antemano. */}
         {gallery.length > 1 && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={gallery[1]} alt="" aria-hidden="true" loading="lazy" style={{ display: 'none' }} />
+          <Image src={gallery[1]} alt="" aria-hidden="true" fill sizes="1px" loading="lazy" style={{ display: 'none' }} />
         )}
 
         {/* Badge descuento */}

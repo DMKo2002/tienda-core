@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, ComponentType } from 'react'
 import { useCart } from './CartContext'
 import { useCartValidation } from './useCartValidation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowLeft, CreditCard, Building2, ImageOff, Check } from 'lucide-react'
 import { createClient, TENANT_ID } from '../../lib/supabase'
 import MercadoPagoBrick from './MercadoPagoBrick'
@@ -780,9 +781,9 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                 <div className="space-y-4 mb-5">
                   {items.map(item => (
                     <div key={item.variantId} className="flex gap-3">
-                      <div className="w-14 h-14 bg-white flex-shrink-0 overflow-hidden">
+                      <div className="w-14 h-14 bg-white flex-shrink-0 overflow-hidden relative">
                         {item.imageUrl
-                          ? <img src={item.imageUrl} className="w-full h-full object-cover" />
+                          ? <Image src={item.imageUrl} alt={item.productName ?? ''} fill sizes="56px" className="object-cover" />
                           : <div className="w-full h-full flex items-center justify-center"><ImageOff size={16} className="text-[var(--color-border)]" /></div>
                         }
                       </div>

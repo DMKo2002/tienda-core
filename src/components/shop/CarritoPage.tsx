@@ -3,6 +3,7 @@
 import { useCart } from './CartContext'
 import { useCartValidation } from './useCartValidation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Trash2, ArrowLeft, ImageOff } from 'lucide-react'
 import { useEffect, useState, ComponentType } from 'react'
 import { createClient, TENANT_ID } from '../../lib/supabase'
@@ -142,9 +143,9 @@ export default function CarritoPage({ Navbar, Footer, shopHref = '/tienda', chec
                   <div key={item.variantId} className="flex gap-5 pb-6 border-b border-[var(--color-border)]">
 
                     {/* Imagen */}
-                    <div className="w-24 h-32 bg-[#F2EEE9] flex-shrink-0 overflow-hidden">
+                    <div className="w-24 h-32 bg-[#F2EEE9] flex-shrink-0 overflow-hidden relative">
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover" />
+                        <Image src={item.imageUrl} alt={item.productName} fill sizes="96px" className="object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <ImageOff size={20} className="text-[var(--color-border)]" />

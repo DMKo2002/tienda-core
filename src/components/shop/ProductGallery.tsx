@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import NextImage from 'next/image'
 import { ImageOff, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface Image {
@@ -43,10 +44,13 @@ export default function ProductGallery({ images, productName }: ProductGalleryPr
         onMouseEnter={() => setMainHover(true)}
         onMouseLeave={() => setMainHover(false)}
       >
-        <img
+        <NextImage
           src={activeImg?.url}
           alt={productName}
-          className="w-full h-full object-cover transition-opacity duration-200"
+          fill
+          sizes="(max-width: 768px) 100vw, 50vw"
+          className="object-cover transition-opacity duration-200"
+          priority
         />
 
         {/* Flechas de carousel — mismo comportamiento que ProductCard: visibles al hoverear */}
@@ -81,13 +85,13 @@ export default function ProductGallery({ images, productName }: ProductGalleryPr
               type="button"
               onClick={() => setActiveIdx(i)}
               onMouseEnter={() => setActiveIdx(i)}
-              className={`aspect-square bg-[#F2EEE9] overflow-hidden transition-all ${
+              className={`aspect-square bg-[#F2EEE9] overflow-hidden relative transition-all ${
                 activeIdx === i
                   ? 'ring-2 ring-[var(--color-charcoal)] ring-offset-1'
                   : 'opacity-60 hover:opacity-100'
               }`}
             >
-              <img src={img.url} alt={`${productName} ${i + 1}`} className="w-full h-full object-cover" />
+              <NextImage src={img.url} alt={`${productName} ${i + 1}`} fill sizes="120px" className="object-cover" />
             </button>
           ))}
         </div>
