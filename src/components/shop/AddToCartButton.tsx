@@ -34,6 +34,15 @@ interface AddToCartButtonProps {
   // Mercado Pago (store_config.interest_free_installments). null/0 = no ofrece.
   // Es informativo (cartel) — no activa nada por sí solo.
   interestFreeInstallments?: number | null
+  // store_config.variant_column_type — 'color' (default) muestra swatches
+  // circulares + selector de color como siempre. 'text' = el tenant usa la
+  // columna de la tabla de variantes para otra cosa (ej: modelo, material) —
+  // se muestran botones planos sin nada de color, igual que los talles.
+  columnType?: 'color' | 'text'
+  // Solo se usan cuando columnType='text' — nombran los ejes (ej: "Ancho"/"Largo").
+  // Vacío = "Opción"/"Variante" genérico. En modo 'color' siempre dice "Talle"/"Color".
+  rowLabel?: string
+  columnLabel?: string
 }
 
 const formatPrice = (n: number) =>
@@ -68,7 +77,9 @@ function isLight(hex: string): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 > 180
 }
 
-export default function AddToCartButton({ product, sizes, colors, showPrices = true, ignoreStock = false, isWholesale = false, minQty = 1, interestFreeInstallments = null }: AddToCartButtonProps) {
+export default function AddToCartButton({ product, sizes, colors, showPrices = true, ignoreStock = false, isWholesale = false, minQty = 1, interestFreeInstallments = null, columnType = 'color', rowLabel = '', columnLabel = '' }: AddToCartButtonProps) {
+  const effRowLabel = columnType === 'text' ? (rowLabel.trim() || 'Opción') : 'Talle'
+  const effColumnLabel = columnType === 'text' ? (columnLabel.trim() || 'Variante') : 'Color'
   const { addItem, items: cartItems } = useCart()
   const [selectedSize, setSelectedSize] = useState<string | null>(sizes[0] ?? null)
   const [selectedColor, setSelectedColor] = useState<string | null>(colors[0] ?? null)
@@ -175,7 +186,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
       variantDesc: [selectedSize, selectedColor].filter(Boolean).join(' / '),
       size: selectedSize ?? '',
       color: selectedColor ?? '',
-      colorHex: selectedColor ? getVariantColorHex(selectedColor) : undefined,
+      colorHex: (columnType === 'color' && selectedColor) ? getVariantColorHex(selectedColor) : undefined,
       price: effectivePrice,
       priceType,
       imageUrl: product.coverUrl,
@@ -194,52 +205,77 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
       {colors.length > 0 && (
         <div>
           <p className="text-xs tracking-[0.15em] uppercase text-[var(--color-stone)] mb-3">
-            Color:{' '}
+            {effColumnLabel}:{' '}
             <span className="normal-case font-light text-[var(--color-charcoal)]">
               {selectedColor}
             </span>
           </p>
-          <div className="flex gap-2.5 flex-wrap">
-            {colors.map(color => {
-              const hex = getVariantColorHex(color)
-              const light = isLight(hex)
-              const selected = selectedColor === color
-              const available = isColorAvailable(color)
-              return (
-                <button
-                  key={color}
-                  onClick={() => { if (available) { setSelectedColor(color); setStockError(null) } }}
-                  title={available ? color : `${color} - sin stock`}
-                  disabled={!available}
-                  style={{
-                    width: 28, height: 28, borderRadius: '50%', backgroundColor: hex,
-                    border: selected ? '2px solid var(--color-charcoal)' : light ? '1px solid #D0CBC3' : '1px solid transparent',
-                    outline: selected ? '2px solid white' : 'none',
-                    outlineOffset: -4,
-                    cursor: available ? 'pointer' : 'not-allowed',
-                    opacity: available ? 1 : 0.35,
-                    transition: 'transform 0.15s',
-                    transform: selected ? 'scale(1.15)' : 'scale(1)',
-                    flexShrink: 0,
-                    position: 'relative',
-                  }}
-                >
-                  {!available && (
-                    <span style={{
-                      position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 16, color: light ? '#666' : '#fff', fontWeight: 300,
-                    }}>x</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+          {columnType === 'color' ? (
+            <div className="flex gap-2.5 flex-wrap">
+              {colors.map(color => {
+                const hex = getVariantColorHex(color)
+                const light = isLight(hex)
+                const selected = selectedColor === color
+                const available = isColorAvailable(color)
+                return (
+                  <button
+                    key={color}
+                    onClick={() => { if (available) { setSelectedColor(color); setStockError(null) } }}
+                    title={available ? color : `${color} - sin stock`}
+                    disabled={!available}
+                    style={{
+                      width: 28, height: 28, borderRadius: '50%', backgroundColor: hex,
+                      border: selected ? '2px solid var(--color-charcoal)' : light ? '1px solid #D0CBC3' : '1px solid transparent',
+                      outline: selected ? '2px solid white' : 'none',
+                      outlineOffset: -4,
+                      cursor: available ? 'pointer' : 'not-allowed',
+                      opacity: available ? 1 : 0.35,
+                      transition: 'transform 0.15s',
+                      transform: selected ? 'scale(1.15)' : 'scale(1)',
+                      flexShrink: 0,
+                      position: 'relative',
+                    }}
+                  >
+                    {!available && (
+                      <span style={{
+                        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 16, color: light ? '#666' : '#fff', fontWeight: 300,
+                      }}>x</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="flex gap-2 flex-wrap">
+              {colors.map(color => {
+                const selected = selectedColor === color
+                const available = isColorAvailable(color)
+                return (
+                  <button
+                    key={color}
+                    onClick={() => { if (available) { setSelectedColor(color); setStockError(null) } }}
+                    disabled={!available}
+                    className={`h-9 px-3 text-xs font-light border transition-colors rounded-sm relative ${
+                      selected
+                        ? 'border-[var(--color-charcoal)] bg-[var(--color-charcoal)] text-white'
+                        : available
+                        ? 'border-[var(--color-border)] text-[var(--color-charcoal)] hover:border-[var(--color-charcoal)]'
+                        : 'border-[var(--color-border)] text-[var(--color-stone)]/40 cursor-not-allowed line-through'
+                    }`}
+                  >
+                    {color}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
       {sizes.length > 0 && (
         <div>
-          <p className="text-xs tracking-[0.15em] uppercase text-[var(--color-stone)] mb-3">Talle</p>
+          <p className="text-xs tracking-[0.15em] uppercase text-[var(--color-stone)] mb-3">{effRowLabel}</p>
           <div className="flex gap-2 flex-wrap">
             {sizes.map(size => {
               const available = isSizeAvailable(size)
