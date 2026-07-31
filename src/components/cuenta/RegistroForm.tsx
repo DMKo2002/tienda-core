@@ -7,7 +7,7 @@ import { createClient, TENANT_ID } from '../../lib/supabase'
 
 type Tipo = 'retail' | 'wholesale'
 
-const PROVINCIAS = [
+export const PROVINCIAS = [
   'Buenos Aires', 'Ciudad Autónoma de Buenos Aires', 'Catamarca', 'Chaco', 'Chubut',
   'Córdoba', 'Corrientes', 'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa', 'La Rioja',
   'Mendoza', 'Misiones', 'Neuquén', 'Río Negro', 'Salta', 'San Juan', 'San Luis',
@@ -53,7 +53,7 @@ export default function RegistroForm({ isUpgrade, initialNombre = '', initialApe
   const [tipo, setTipo] = useState<Tipo>(isUpgrade ? 'wholesale' : 'retail')
   const [form, setForm] = useState({
     nombre: initialNombre, apellido: initialApellido, email: initialEmail, password: '', confirmar: '',
-    empresa: '', cuit: '', direccion: '', provincia: '', localidad: '',
+    empresa: '', dni: '',
   })
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
@@ -93,9 +93,7 @@ export default function RegistroForm({ isUpgrade, initialNombre = '', initialApe
       return
     }
     if (tipo === 'wholesale') {
-      if (!form.empresa || !form.cuit) { setError('Empresa y CUIT son obligatorios'); return }
-      if (!form.provincia || !form.localidad) { setError('Provincia y localidad son obligatorias'); return }
-      if (!form.direccion) { setError('La dirección es obligatoria'); return }
+      if (!form.empresa || !form.dni) { setError('Empresa y DNI son obligatorios'); return }
     }
     if (!turnstileToken) {
       setError('Completá la verificación de seguridad')
@@ -114,10 +112,7 @@ export default function RegistroForm({ isUpgrade, initialNombre = '', initialApe
           password: isUpgrade ? undefined : form.password,
           tipo,
           empresa: form.empresa || undefined,
-          cuit: form.cuit || undefined,
-          direccion: form.direccion || undefined,
-          provincia: form.provincia || undefined,
-          localidad: form.localidad || undefined,
+          dni: form.dni || undefined,
           turnstileToken,
         }),
       })
@@ -240,7 +235,9 @@ export default function RegistroForm({ isUpgrade, initialNombre = '', initialApe
             </div>
           </div>
 
-          {/* Campos mayorista */}
+          {/* Campos mayorista — simplificado 2026-07-31: solo empresa + DNI para
+              bajar la fricción del alta. CUIT, dirección y demás datos fiscales
+              se completan después desde "Mis datos". */}
           {tipo === 'wholesale' && (
             <>
               <div>
@@ -251,47 +248,11 @@ export default function RegistroForm({ isUpgrade, initialNombre = '', initialApe
                 />
               </div>
               <div>
-                <label className="block text-[10px] tracking-[0.15em] uppercase text-[var(--color-stone)] mb-1.5">CUIT *</label>
+                <label className="block text-[10px] tracking-[0.15em] uppercase text-[var(--color-stone)] mb-1.5">DNI *</label>
                 <input
                   className="w-full px-3 py-2.5 border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:border-[var(--color-charcoal)] transition-colors"
-                  value={form.cuit} onChange={e => set('cuit', e.target.value)} required
-                  placeholder="20-12345678-9"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] tracking-[0.15em] uppercase text-[var(--color-stone)] mb-1.5">Dirección *</label>
-                <input
-                  className="w-full px-3 py-2.5 border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:border-[var(--color-charcoal)] transition-colors"
-                  placeholder="Ej: Av. Corrientes 1234"
-                  value={form.direccion} onChange={e => set('direccion', e.target.value)} required
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] tracking-[0.15em] uppercase text-[var(--color-stone)] mb-1.5">Provincia *</label>
-                <div className="relative">
-                  <select
-                    className="w-full px-3 py-2.5 border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:border-[var(--color-charcoal)] transition-colors appearance-none"
-                    value={form.provincia} onChange={e => set('provincia', e.target.value)} required
-                  >
-                    <option value="">Seleccioná una provincia</option>
-                    {PROVINCIAS.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-[10px] tracking-[0.15em] uppercase text-[var(--color-stone)] mb-1.5">Localidad *</label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2.5 border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:border-[var(--color-charcoal)] transition-colors"
-                  placeholder="Ej: Mar del Plata"
-                  value={form.localidad}
-                  onChange={e => set('localidad', e.target.value)}
-                  required
+                  value={form.dni} onChange={e => set('dni', e.target.value)} required
+                  placeholder="Sin puntos"
                 />
               </div>
             </>

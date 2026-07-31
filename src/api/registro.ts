@@ -20,13 +20,15 @@ async function verifyTurnstile(token: string): Promise<boolean> {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { nombre, apellido, email, password, tipo, empresa, cuit, direccion, provincia, localidad, turnstileToken } = body
+    const { nombre, apellido, email, password, tipo, empresa, cuit, dni, direccion, provincia, localidad, turnstileToken } = body
     if (!nombre || !email || !tipo)
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 })
-    if (tipo === 'wholesale' && (!empresa || !cuit))
-      return NextResponse.json({ error: 'Empresa y CUIT son obligatorios para cuentas mayoristas' }, { status: 400 })
-    if (tipo === 'wholesale' && (!direccion || !provincia || !localidad))
-      return NextResponse.json({ error: 'Dirección, provincia y localidad son obligatorias' }, { status: 400 })
+    // Simplificado 2026-07-31: antes se pedían CUIT + dirección + provincia +
+    // localidad de entrada (mucha fricción, poca conversión) — ahora solo
+    // Empresa + DNI son obligatorios para dar de alta una cuenta mayorista.
+    // El resto (CUIT, dirección) se completa después desde "Mis datos".
+    if (tipo === 'wholesale' && (!empresa || !dni))
+      return NextResponse.json({ error: 'Empresa y DNI son obligatorios para cuentas mayoristas' }, { status: 400 })
     if (!turnstileToken)
       return NextResponse.json({ error: 'Verificación de seguridad requerida' }, { status: 400 })
     if (!await verifyTurnstile(turnstileToken))
@@ -63,7 +65,7 @@ export async function POST(req: NextRequest) {
       const canUpgradeToWholesale =
         existingCustomer.type === 'retail' &&
         tipo === 'wholesale' &&
-        !!empresa && !!cuit && !!direccion && !!provincia && !!localidad
+        !!empresa && !!dni
 
       if (!canUpgradeToWholesale) {
         return NextResponse.json({ error: 'Ya tenés una cuenta en esta tienda. Iniciá sesión.' }, { status: 409 })
@@ -92,10 +94,11 @@ export async function POST(req: NextRequest) {
         last_name: apellido ?? null,
         type: tipo,
         company_name: empresa ?? null,
-        cuit: cuit ?? null,
-        address_street: direccion ?? null,
-        address_province: provincia ?? null,
-        address_city: localidad ?? null,
+        dni: dni ?? null,
+        ...(cuit ? { cuit } : {}),
+        ...(direccion ? { address_street: direccion } : {}),
+        ...(provincia ? { address_province: provincia } : {}),
+        ...(localidad ? { address_city: localidad } : {}),
         active: true,
       }).eq('id', existingCustomer.id).eq('tenant_id', tenantId)
       if (upgradeErr) {
@@ -191,8 +194,9 @@ export async function POST(req: NextRequest) {
         last_name: apellido ?? null,
         type: tipo,
         company_name: empresa ?? null,
-        cuit: cuit ?? null,
+        dni: dni ?? null,
         auth_user_id: userId,
+        ...(cuit ? { cuit } : {}),
         ...(direccion ? { address_street: direccion } : {}),
         ...(provincia ? { address_province: provincia } : {}),
         ...(localidad ? { address_city: localidad } : {}),
@@ -207,7 +211,7 @@ export async function POST(req: NextRequest) {
       const { error: insertErr } = await service.from('customers').insert({
         id: randomUUID(), tenant_id: tenantId, email: normalizedEmail, auth_user_id: userId,
         full_name: nombre, last_name: apellido ?? null,
-        company_name: empresa ?? null, cuit: cuit ?? null,
+        company_name: empresa ?? null, cuit: cuit ?? null, dni: dni ?? null,
         phone: null, type: tipo,
         address_street: direccion ?? null,
         address_province: provincia ?? null,
