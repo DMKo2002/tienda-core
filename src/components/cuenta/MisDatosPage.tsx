@@ -15,6 +15,9 @@ export default async function MisDatosPage() {
 
   // Mismo fallback que /cuenta y RegistroPage: por auth_user_id primero,
   // por email después (cubre customers importados sin vincular todavía).
+  // user.email es el mail disfrazado de Auth, no el real — para el fallback
+  // usamos user.user_metadata.real_email (grabado por registro.ts).
+  const realEmail = (user.user_metadata as any)?.real_email ?? null
   let customer: Record<string, any> | null = null
   const { data: custById } = await service
     .from('customers')
@@ -24,11 +27,11 @@ export default async function MisDatosPage() {
     .maybeSingle()
   if (custById) {
     customer = custById
-  } else if (user.email) {
+  } else if (realEmail) {
     const { data: custByEmail } = await service
       .from('customers')
       .select('*')
-      .eq('email', user.email)
+      .eq('email', realEmail)
       .eq('tenant_id', tenantId)
       .maybeSingle()
     customer = custByEmail
@@ -42,7 +45,7 @@ export default async function MisDatosPage() {
         apellido: customer?.last_name ?? '',
         dni: customer?.dni ?? '',
         telefono: customer?.phone ?? '',
-        email: customer?.email ?? user.email ?? '',
+        email: customer?.email ?? realEmail ?? '',
         empresa: customer?.company_name ?? '',
         cuit: customer?.cuit ?? '',
         direccion: customer?.address_street ?? '',

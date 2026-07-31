@@ -31,6 +31,12 @@ export async function POST(req: NextRequest) {
 
     // Resolver el customer: primero por auth_user_id, luego por email (mismo
     // fallback que /cuenta y RegistroPage — cubre customers importados).
+    // OJO: user.email acá es el mail "disfrazado" de Supabase Auth (ver
+    // lib/auth-email.ts), NO el mail real del cliente — customers.email
+    // siempre guarda el real. Para el fallback por email hay que usar
+    // user.user_metadata.real_email (lo graba registro.ts al crear la
+    // cuenta), si no este fallback nunca matchea nada.
+    const realEmail = (user.user_metadata as any)?.real_email ?? null
     let customerId: string | null = null
     const { data: custById } = await service
       .from('customers')
@@ -40,11 +46,11 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
     if (custById) {
       customerId = custById.id
-    } else if (user.email) {
+    } else if (realEmail) {
       const { data: custByEmail } = await service
         .from('customers')
         .select('id')
-        .eq('email', user.email)
+        .eq('email', realEmail)
         .eq('tenant_id', tenantId)
         .maybeSingle()
       customerId = custByEmail?.id ?? null
