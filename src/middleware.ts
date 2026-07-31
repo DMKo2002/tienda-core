@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, NextFetchEvent } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-export async function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest, event: NextFetchEvent) {
   const requestHeaders = new Headers(req.headers)
 
   // 1. Refresco de sesion Supabase
@@ -69,6 +69,33 @@ export async function middleware(req: NextRequest) {
 
   if (!tenantId) {
     tenantId = process.env.NEXT_PUBLIC_TENANT_ID ?? null
+  }
+
+  // 3. Medición de visitas del mes (límite del plan — ver Panel Admin
+  //    /dashboard/uso). Solo pageviews reales: GET de páginas, sin /api,
+  //    sin assets (path con extensión) y sin prefetch del router.
+  //    Fire-and-forget via waitUntil — nunca frena la respuesta.
+  const path = req.nextUrl.pathname
+  const esPageview =
+    !!tenantId &&
+    req.method === 'GET' &&
+    !path.startsWith('/api') &&
+    !path.includes('.') &&
+    req.headers.get('purpose') !== 'prefetch' &&
+    !req.headers.get('next-router-prefetch')
+
+  if (esPageview) {
+    event.waitUntil(
+      fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/record_visit`, {
+        method: 'POST',
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tid: tenantId }),
+      }).catch(() => {})
+    )
   }
 
   if (tenantId) {
