@@ -32,7 +32,10 @@
     "./auth-email": "./src/lib/auth-email.ts",
     "./api/auth-verificar": "./src/api/auth-verificar.ts",
     "./CarritoPage": "./src/components/shop/CarritoPage.tsx",
-    "./CheckoutPage": "./src/components/shop/CheckoutPage.tsx"
+    "./CheckoutPage": "./src/components/shop/CheckoutPage.tsx",
+    "./seo": "./src/lib/seo.ts",
+    "./sitemap": "./src/app-helpers/sitemap.ts",
+    "./robots": "./src/app-helpers/robots.ts"
   },
   "peerDependencies": {
     "next": ">=14.0.0",
