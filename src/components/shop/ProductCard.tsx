@@ -332,13 +332,12 @@ export default function ProductCard({
         {canQuickBuy && showPrices && (
           <button
             type="button"
-            onClick={handleQuickBuy}
-            disabled={!inStock}
+            onClick={inStock ? handleQuickBuy : undefined}
             className={`w-full mb-2.5 py-2.5 text-[11px] tracking-[0.15em] uppercase font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
               added
                 ? 'bg-[var(--color-stone)] text-white cursor-default'
                 : !inStock
-                ? 'bg-[var(--color-border)] text-[var(--color-stone)] cursor-not-allowed opacity-60'
+                ? 'bg-transparent border border-[var(--color-charcoal)] text-[var(--color-charcoal)] hover:bg-[var(--color-charcoal)] hover:text-white'
                 : 'bg-[var(--color-charcoal)] text-white hover:bg-[var(--color-stone)]'
             }`}
           >
