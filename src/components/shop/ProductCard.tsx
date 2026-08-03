@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ImageOff, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ImageOff, ChevronLeft, ChevronRight, ShoppingBag, Check } from 'lucide-react'
+import { useCart } from './CartContext'
 
 interface ProductCardProps {
   id: string
@@ -22,6 +23,17 @@ interface ProductCardProps {
   index?: number
   colors?: string[]
   sizes?: string[]
+  // Ratio de la imagen del card — por tienda, sale de store_config.product_image_ratio.
+  // '2:3' (default, retrato — indumentaria) | '1:1' (cuadrada — ej. cosmética)
+  imageRatio?: '2:3' | '1:1'
+  // Botón "Comprar" directo desde el card, sin pasar por la ficha de producto.
+  // Solo se muestra si el producto es "simple" (sin talle/color real, es decir
+  // colors.length === 0 && sizes.length === 0) Y viene variantId — si el
+  // producto tiene variantes de verdad, el usuario sigue yendo a la ficha a
+  // elegirlas, como siempre.
+  variantId?: string | null
+  stock?: number
+  ignoreStock?: boolean
 }
 
 const formatPrice = (n: number) =>
@@ -111,7 +123,8 @@ function isLight(hex: string): boolean {
 
 export default function ProductCard({
   id, name, slug, coverUrl, images = [], retailPrice, retailCompareAt, wholesalePrice,
-  showWholesale = false, showPrices = true, priceVisibility = 'all', isRetailUser = false, index = 0, colors = [], sizes = []
+  showWholesale = false, showPrices = true, priceVisibility = 'all', isRetailUser = false, index = 0, colors = [], sizes = [],
+  imageRatio = '2:3', variantId = null, stock = 0, ignoreStock = false,
 }: ProductCardProps) {
 
   // Props pre-procesadas desde tienda/page.tsx:
@@ -150,6 +163,34 @@ export default function ProductCard({
     setHoverIdx(i => (i + 1) % gallery.length)
   }
 
+  // ── Comprar directo desde el card (producto sin talle/color real) ──────────
+  const { addItem } = useCart()
+  const [added, setAdded] = useState(false)
+  const isSimpleProduct = colors.length === 0 && sizes.length === 0
+  const canQuickBuy = isSimpleProduct && !!variantId && !!salePrice
+  const inStock = ignoreStock || stock > 0
+
+  function handleQuickBuy(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!canQuickBuy || !inStock || !salePrice) return
+    addItem({
+      variantId: `${variantId}____`,
+      productId: id,
+      productName: name,
+      variantDesc: '',
+      size: '',
+      color: '',
+      price: salePrice,
+      priceType: 'retail',
+      imageUrl: coverUrl ?? null,
+      quantity: 1,
+      stock: ignoreStock ? 999999 : stock,
+    })
+    setAdded(true)
+    setTimeout(() => setAdded(false), 2000)
+  }
+
   return (
     <Link
       href={`/tienda/${slug}`}
@@ -159,7 +200,7 @@ export default function ProductCard({
       {/* Imagen */}
       <div
         className="product-img-wrap"
-        style={{ aspectRatio: '3/4', width: '100%', backgroundColor: '#F2EEE9', marginBottom: '0.75rem', position: 'relative', overflow: 'hidden' }}
+        style={{ aspectRatio: imageRatio === '1:1' ? '1/1' : '3/4', width: '100%', backgroundColor: '#F2EEE9', marginBottom: '0.75rem', position: 'relative', overflow: 'hidden' }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
@@ -286,6 +327,36 @@ export default function ProductCard({
             </a>
           )}
         </div>
+
+        {/* Comprar directo — solo productos simples (sin talle/color real) con variantId */}
+        {canQuickBuy && showPrices && (
+          <button
+            type="button"
+            onClick={handleQuickBuy}
+            disabled={!inStock}
+            className={`w-full mb-2.5 py-2.5 text-[11px] tracking-[0.15em] uppercase font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
+              added
+                ? 'bg-[var(--color-stone)] text-white cursor-default'
+                : !inStock
+                ? 'bg-[var(--color-border)] text-[var(--color-stone)] cursor-not-allowed opacity-60'
+                : 'bg-[var(--color-charcoal)] text-white hover:bg-[var(--color-stone)]'
+            }`}
+          >
+            {added ? (
+              <>
+                <Check size={13} strokeWidth={1.5} />
+                Agregado
+              </>
+            ) : !inStock ? (
+              'Sin stock'
+            ) : (
+              <>
+                <ShoppingBag size={13} strokeWidth={1.5} />
+                Agregar al carrito
+              </>
+            )}
+          </button>
+        )}
 
         {/* Colores */}
         {colors.length > 0 && (
