@@ -279,7 +279,7 @@ export default function ProductCard({
 
       {/* Info */}
       <div>
-        <p className="text-sm font-light text-[var(--color-charcoal)] leading-snug group-hover:text-[var(--color-stone)] transition-colors mb-1.5">
+        <p className="text-sm font-light text-[var(--color-charcoal)] leading-snug group-hover:text-[var(--color-stone)] transition-colors mb-1.5 line-clamp-2 min-h-[2.5em]">
           {name}
         </p>
 
