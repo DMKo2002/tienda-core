@@ -16,6 +16,7 @@
     "./MisDatosPage": "./src/components/cuenta/MisDatosPage.tsx",
     "./CookieBanner": "./src/components/layout/CookieBanner.tsx",
     "./supabase-server": "./src/lib/supabase-server.ts",
+    "./store-data": "./src/lib/store-data.ts",
     "./supabase": "./src/lib/supabase.ts",
     "./email": "./src/lib/email.ts",
     "./ratelimit": "./src/lib/ratelimit.ts",
