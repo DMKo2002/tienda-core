@@ -32,6 +32,15 @@ export type StoreConfig = Record<string, any>
  *   const supabase = createClient()
  *   const { tenant, config } = await getStoreData(supabase, TENANT_ID())
  */
+// Campos "núcleo" — probados y estables (footer, navbar, contacto). Si el
+// select('*') de abajo falla por CUALQUIER motivo (una columna nueva rota,
+// un tipo de dato que Postgrest no puede serializar, un permiso puntual,
+// etc.), se reintenta con esta lista angosta para no perder nunca los datos
+// esenciales de contacto — mejor una tienda con menos funciones avanzadas
+// que un footer vacío.
+const CORE_FIELDS =
+  'logo_url, whatsapp_number, notification_email, instagram_url, facebook_url, branches, video_360_url'
+
 export async function getStoreData(
   supabase: SupabaseClient,
   tenantId: string
@@ -44,12 +53,27 @@ export async function getStoreData(
   if (tenantRes.error) {
     console.error('[getStoreData] tenants query failed:', tenantRes.error.message)
   }
+
+  let config = (configRes.data as StoreConfig) ?? null
+
   if (configRes.error) {
-    console.error('[getStoreData] store_config query failed:', configRes.error.message)
+    console.error(
+      "[getStoreData] store_config select('*') failed, retrying with core fields only:",
+      configRes.error.message
+    )
+    const fallback = await supabase
+      .from('store_config')
+      .select(CORE_FIELDS)
+      .eq('tenant_id', tenantId)
+      .single()
+    if (fallback.error) {
+      console.error('[getStoreData] core fields fallback ALSO failed:', fallback.error.message)
+    }
+    config = (fallback.data as StoreConfig) ?? null
   }
 
   return {
     tenant: (tenantRes.data as StoreTenant) ?? null,
-    config: (configRes.data as StoreConfig) ?? null,
+    config,
   }
 }
