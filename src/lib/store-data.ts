@@ -46,8 +46,13 @@ const FUNCTIONAL_FIELDS = [
   'terms_and_conditions',
   'transfer_cbu',
   'transfer_alias',
-  'mp_access_token',
   'mp_enabled',
+  // OJO: mp_access_token NO va acá. Es el token secreto de MercadoPago del
+  // tenant y anon NO tiene permiso de leerlo (a propósito, ver comentario en
+  // src/api/mp-preferencia.ts) — incluirlo acá tira "permission denied" en
+  // TODO el pedido, no solo en ese campo, y así se cayeron footer/logo en
+  // varias tiendas el 2026-08-03. El checkout ya lo lee aparte con el
+  // service client (mp-preferencia.ts, mp-crear-pago.ts) — no hace falta acá.
 ].join(', ')
 
 // Ultra-reducido: solo lo que necesita el footer/logo. Si el select con
