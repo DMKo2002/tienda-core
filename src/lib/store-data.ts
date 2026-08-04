@@ -79,16 +79,22 @@ export async function getStoreData(
   supabase: SupabaseClient,
   tenantId: string
 ): Promise<{ tenant: StoreTenant | null; config: StoreConfig | null }> {
+  // OJO: .limit(1) en vez de .single() a propósito. .single() exige que
+  // haya EXACTAMENTE 1 fila y tira error si hay 0 o 2+ (fila duplicada
+  // o faltante para ese tenant_id) — eso rompe el pedido entero aunque
+  // todas las columnas estén perfectas. Con .limit(1) + tomar el primer
+  // elemento, nunca explota por cantidad de filas; en el peor caso, si
+  // hay una fila vieja duplicada, muestra la primera que encuentre.
   const [tenantRes, configRes] = await Promise.all([
-    supabase.from('tenants').select('name, domain').eq('id', tenantId).single(),
-    supabase.from('store_config').select(FUNCTIONAL_FIELDS).eq('tenant_id', tenantId).single(),
+    supabase.from('tenants').select('name, domain').eq('id', tenantId).limit(1),
+    supabase.from('store_config').select(FUNCTIONAL_FIELDS).eq('tenant_id', tenantId).limit(1),
   ])
 
   if (tenantRes.error) {
     console.error('[getStoreData] tenants query failed:', tenantRes.error.message)
   }
 
-  let config = (configRes.data as StoreConfig) ?? null
+  let config = ((configRes.data?.[0] as StoreConfig) ?? null)
 
   if (configRes.error) {
     console.error(
@@ -99,18 +105,18 @@ export async function getStoreData(
       .from('store_config')
       .select(MINIMAL_FIELDS)
       .eq('tenant_id', tenantId)
-      .single()
+      .limit(1)
     if (fallback.error) {
       console.error(
         `[getStoreData] minimal fallback ALSO failed for tenant ${tenantId}:`,
         fallback.error.message
       )
     }
-    config = (fallback.data as StoreConfig) ?? null
+    config = (fallback.data?.[0] as StoreConfig) ?? null
   }
 
   return {
-    tenant: (tenantRes.data as StoreTenant) ?? null,
+    tenant: (tenantRes.data?.[0] as StoreTenant) ?? null,
     config,
   }
 }
