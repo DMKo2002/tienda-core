@@ -64,19 +64,31 @@ export default function RegistroForm({ isUpgrade, initialNombre = '', initialApe
   const [exito, setExito] = useState(false)
   const [confirmacion, setConfirmacion] = useState(false)
   const [regVisibility, setRegVisibility] = useState<'both' | 'retail_only' | 'wholesale_only'>('both')
+  // Fallback al env var global (el widget "default" que cubre *.gounuri.com)
+  // hasta que la query de abajo resuelva — y para siempre, si el tenant no
+  // tiene dominio propio verificado (turnstile_site_key queda null en ese
+  // caso, ver src/app/api/dominio/route.ts en Panel Admin).
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? '1x00000000000000000000AA'
+  )
 
   useEffect(() => {
     const supabase = createClient()
     supabase
       .from('store_config')
-      .select('registration_visibility')
+      .select('registration_visibility, turnstile_site_key')
       .eq('tenant_id', TENANT_ID())
       .single()
       .then(({ data }) => {
-        const rv = ((data as any)?.registration_visibility ?? 'both') as typeof regVisibility
+        const conf = data as any
+        const rv = (conf?.registration_visibility ?? 'both') as typeof regVisibility
         setRegVisibility(rv)
         if (rv === 'retail_only' && !isUpgrade) setTipo('retail')
         if (rv === 'wholesale_only' && !isUpgrade) setTipo('wholesale')
+        // Dominio propio verificado -> tiene su propio widget del pool (el
+        // widget "default" arriba no autoriza ese hostname). Sin dominio
+        // propio, turnstile_site_key es null y se queda con el default.
+        if (conf?.turnstile_site_key) setTurnstileSiteKey(conf.turnstile_site_key)
       })
   }, [isUpgrade])
 
@@ -312,7 +324,7 @@ export default function RegistroForm({ isUpgrade, initialNombre = '', initialApe
           <div className="flex justify-center py-2">
             <Turnstile
               key={turnstileKey}
-              sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? '1x00000000000000000000AA'}
+              sitekey={turnstileSiteKey}
               onVerify={token => setTurnstileToken(token)}
               onExpire={() => setTurnstileToken(null)}
               theme="light"

@@ -4,8 +4,30 @@ import { createServerSupabase, createServiceSupabase, TENANT_ID } from '../lib/s
 import { syntheticAuthEmail } from '../lib/auth-email'
 import { sendEmail, emailBienvenidaCliente, emailConfirmacionRegistro } from '../lib/email'
 
-async function verifyTurnstile(token: string): Promise<boolean> {
-  const secret = process.env.TURNSTILE_SECRET_KEY
+// El widget (y por lo tanto el secret key correcto para validar) depende del
+// tenant: los que tienen dominio propio verificado quedan asignados a un
+// widget del pool (store_config.turnstile_widget_id -> turnstile_widgets),
+// con su propio secret — el widget "default" (TURNSTILE_SECRET_KEY, env var)
+// no los autoriza porque solo tiene *.gounuri.com como hostname. Sin
+// dominio propio, no hay fila asignada y se usa el default.
+async function resolveTurnstileSecret(service: ReturnType<typeof createServiceSupabase>, tenantId: string): Promise<string | undefined> {
+  const { data: configRows } = await service
+    .from('store_config')
+    .select('turnstile_widget_id')
+    .eq('tenant_id', tenantId)
+    .limit(1)
+  const widgetId = configRows?.[0]?.turnstile_widget_id
+  if (!widgetId) return process.env.TURNSTILE_SECRET_KEY
+
+  const { data: widgetRows } = await service
+    .from('turnstile_widgets')
+    .select('secret_key')
+    .eq('id', widgetId)
+    .limit(1)
+  return widgetRows?.[0]?.secret_key ?? process.env.TURNSTILE_SECRET_KEY
+}
+
+async function verifyTurnstile(token: string, secret: string | undefined): Promise<boolean> {
   if (!secret) { console.warn('TURNSTILE_SECRET_KEY no configurada'); return true }
   const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
     method: 'POST',
@@ -29,13 +51,14 @@ export async function POST(req: NextRequest) {
     // El resto (CUIT, dirección) se completa después desde "Mis datos".
     if (tipo === 'wholesale' && (!empresa || !dni))
       return NextResponse.json({ error: 'Empresa y DNI son obligatorios para cuentas mayoristas' }, { status: 400 })
-    if (!turnstileToken)
-      return NextResponse.json({ error: 'Verificación de seguridad requerida' }, { status: 400 })
-    if (!await verifyTurnstile(turnstileToken))
-      return NextResponse.json({ error: 'Verificación de seguridad fallida. Intentá de nuevo.' }, { status: 400 })
-
     const service = createServiceSupabase()         // para DB + admin auth
     const tenantId = TENANT_ID()
+
+    if (!turnstileToken)
+      return NextResponse.json({ error: 'Verificación de seguridad requerida' }, { status: 400 })
+    const turnstileSecret = await resolveTurnstileSecret(service, tenantId)
+    if (!await verifyTurnstile(turnstileToken, turnstileSecret))
+      return NextResponse.json({ error: 'Verificación de seguridad fallida. Intentá de nuevo.' }, { status: 400 })
     const normalizedEmail = String(email).trim().toLowerCase()
     console.log(`[registro] inicio — email=${normalizedEmail}, tipo=${tipo}, tenantId=${tenantId}`)
 

@@ -15,6 +15,7 @@
     "./RegistroPage": "./src/components/cuenta/RegistroPage.tsx",
     "./MisDatosPage": "./src/components/cuenta/MisDatosPage.tsx",
     "./CookieBanner": "./src/components/layout/CookieBanner.tsx",
+    "./MinOrderBanner": "./src/components/layout/MinOrderBanner.tsx",
     "./supabase-server": "./src/lib/supabase-server.ts",
     "./store-data": "./src/lib/store-data.ts",
     "./supabase": "./src/lib/supabase.ts",
