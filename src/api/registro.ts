@@ -42,15 +42,18 @@ async function verifyTurnstile(token: string, secret: string | undefined): Promi
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { nombre, apellido, email, password, tipo, empresa, cuit, dni, direccion, provincia, localidad, turnstileToken } = body
+    const { nombre, apellido, email, password, tipo, empresa, sinEmpresa, cuit, dni, direccion, provincia, localidad, turnstileToken } = body
     if (!nombre || !email || !tipo)
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 })
     // Simplificado 2026-07-31: antes se pedían CUIT + dirección + provincia +
     // localidad de entrada (mucha fricción, poca conversión) — ahora solo
     // Empresa + DNI son obligatorios para dar de alta una cuenta mayorista.
     // El resto (CUIT, dirección) se completa después desde "Mis datos".
-    if (tipo === 'wholesale' && (!empresa || !dni))
-      return NextResponse.json({ error: 'Empresa y DNI son obligatorios para cuentas mayoristas' }, { status: 400 })
+    // 2026-08-07: "No tengo empresa" (sinEmpresa) permite saltear el nombre de
+    // empresa para mayoristas que compran a título individual — el DNI sigue
+    // siendo obligatorio igual.
+    if (tipo === 'wholesale' && ((!empresa && !sinEmpresa) || !dni))
+      return NextResponse.json({ error: 'Empresa (o "No tengo empresa") y DNI son obligatorios para cuentas mayoristas' }, { status: 400 })
     const service = createServiceSupabase()         // para DB + admin auth
     const tenantId = TENANT_ID()
 

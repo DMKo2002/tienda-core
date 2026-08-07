@@ -96,6 +96,22 @@ export async function POST(req: NextRequest) {
       .in('id', productIdsToCheck)
       .eq('tenant_id', TENANT_ID())
 
+    // Foto de portada por producto — se copia al pedido en este momento (no se
+    // resuelve al vuelo en el PDF) para que el recibo siga mostrando la imagen
+    // correcta aunque el producto se edite o borre después.
+    const { data: productImages } = await supabase
+      .from('product_images')
+      .select('product_id, url, is_cover, sort_order')
+      .in('product_id', productIdsToCheck)
+      .order('sort_order', { ascending: true })
+    const coverImageByProduct = new Map<string, string>()
+    for (const img of (productImages ?? []) as any[]) {
+      const current = coverImageByProduct.get(img.product_id)
+      // is_cover siempre gana; si no hay ninguna marcada, se queda con la de
+      // menor sort_order (la primera que aparece, gracias al order() de arriba).
+      if (img.is_cover || !current) coverImageByProduct.set(img.product_id, img.url)
+    }
+
     const ownedProductIds = new Set((ownedProducts ?? []).map((p: any) => p.id))
     const variantIds = (variantRows ?? [])
       .filter((v: any) => ownedProductIds.has(v.product_id))
@@ -349,15 +365,19 @@ export async function POST(req: NextRequest) {
     if (orderError) throw orderError
 
     // ── 7. Crear items del pedido ─────────────────────────────────────────────
-    const itemsPayload = validatedItems.map(item => ({
-      order_id: order.id,
-      variant_id: item.variantId ?? null,
-      product_name: item.productName,
-      variant_desc: item.variantDesc ?? null,
-      quantity: item.quantity,
-      unit_price: item.price,
-      price_type: item.priceType,
-    }))
+    const itemsPayload = validatedItems.map(item => {
+      const pid = variantIdToProductId.get(item.variantId)
+      return {
+        order_id: order.id,
+        variant_id: item.variantId ?? null,
+        product_name: item.productName,
+        variant_desc: item.variantDesc ?? null,
+        quantity: item.quantity,
+        unit_price: item.price,
+        price_type: item.priceType,
+        product_image_url: (pid && coverImageByProduct.get(pid)) ?? null,
+      }
+    })
 
     const { error: itemsError } = await supabase
       .from('order_items')

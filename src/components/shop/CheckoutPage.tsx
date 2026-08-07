@@ -5,7 +5,7 @@ import { useCart } from './CartContext'
 import { useCartValidation } from './useCartValidation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowLeft, CreditCard, Building2, ImageOff, Check } from 'lucide-react'
+import { ArrowLeft, CreditCard, Building2, ImageOff, Check, Banknote } from 'lucide-react'
 import { createClient, TENANT_ID } from '../../lib/supabase'
 import MercadoPagoBrick from './MercadoPagoBrick'
 
@@ -115,7 +115,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
   const { items, total, clearCart } = useCart()
   const supabase = createClient()
 
-  const [step, setStep] = useState<'datos' | 'pago' | 'tarjeta' | 'confirmacion' | 'qr'>('datos')
+  const [step, setStep] = useState<'datos' | 'pago' | 'tarjeta' | 'confirmacion' | 'qr' | 'efectivo'>('datos')
   const [mpPaymentStatus, setMpPaymentStatus] = useState<'approved' | 'pending' | 'rejected' | null>(null)
   const [mpStatusDetail, setMpStatusDetail] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -148,13 +148,14 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
   const [carrierOtherText, setCarrierOtherText] = useState('')
   const [notes, setNotes] = useState('')
   const [copied, setCopied] = useState<'alias' | 'cbu' | null>(null)
+  const [showCashConfirm, setShowCashConfirm] = useState(false)
 
   useEffect(() => {
     const tenantId = TENANT_ID()
 
     // Cargar config de la tienda
     supabase.from('store_config')
-      .select('mp_enabled, mp_public_key, transfer_enabled, transfer_cbu, transfer_alias, whatsapp_number, min_order_amount, custom_shipping, logo_url, notification_email, instagram_url, facebook_url, tiktok_url, branches, interest_free_installments')
+      .select('mp_enabled, mp_public_key, transfer_enabled, transfer_cbu, transfer_alias, cash_enabled, pickup_address, whatsapp_number, min_order_amount, custom_shipping, logo_url, notification_email, instagram_url, facebook_url, tiktok_url, branches, interest_free_installments')
       .eq('tenant_id', tenantId)
       .single()
       .then(({ data }) => {
@@ -284,7 +285,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
     setStep('pago')
   }
 
-  async function createOrder(paymentMethod: 'mercadopago' | 'transfer') {
+  async function createOrder(paymentMethod: 'mercadopago' | 'transfer' | 'cash') {
     setLoading(true)
     setError(null)
     try {
@@ -365,6 +366,16 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
     setLoading(false)
   }
 
+  async function handleEfectivo() {
+    const order = await createOrder('cash')
+    if (!order) return
+    setCurrentOrderId(order.id)
+    setOrderTotal(totalConEnvio)
+    clearCart()
+    setStep('efectivo')
+    setLoading(false)
+  }
+
   function copyToClipboard(text: string, type: 'alias' | 'cbu') {
     navigator.clipboard.writeText(text)
     setCopied(type)
@@ -393,7 +404,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
     branches: branding.branches,
   }
 
-  if (items.length === 0 && step !== 'qr' && step !== 'confirmacion') {
+  if (items.length === 0 && step !== 'qr' && step !== 'confirmacion' && step !== 'efectivo') {
     return (
       <>
         <Navbar {...navbarProps} />
@@ -403,6 +414,61 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
             <Link href={shopHref} className="inline-flex items-center gap-2 text-xs tracking-[0.2em] uppercase border-b border-[var(--color-charcoal)] pb-1 text-[var(--color-charcoal)]">
               Ir a la tienda
             </Link>
+          </div>
+        </main>
+        <Footer {...footerProps} />
+      </>
+    )
+  }
+
+  // ── PANTALLA EFECTIVO EN EL LOCAL ─────────────────────────
+  if (step === 'efectivo') {
+    return (
+      <>
+        <Navbar {...navbarProps} />
+        <main className="pt-28 min-h-screen flex items-center justify-center">
+          <div className="max-w-sm w-full mx-auto px-6 text-center">
+            <p className="text-xs tracking-[0.2em] uppercase text-[var(--color-stone)] mb-2">
+              Efectivo en el local
+            </p>
+            <h1 className="font-display text-4xl font-light text-[var(--color-charcoal)] mb-1">
+              {formatPrice(orderTotal)}
+            </h1>
+            {currentOrderId && (
+              <p className="text-xs text-[var(--color-stone)] font-mono mb-8">
+                Pedido #{currentOrderId.slice(0, 8).toUpperCase()}
+              </p>
+            )}
+
+            {storeConfig?.pickup_address && (
+              <div className="bg-[#F2EEE9] px-4 py-3 text-left mb-6">
+                <p className="text-xs text-[var(--color-stone)] mb-0.5">Dirección de retiro</p>
+                <p className="text-sm font-light text-[var(--color-charcoal)]">{storeConfig.pickup_address}</p>
+              </div>
+            )}
+
+            <p className="text-xs text-[var(--color-stone)] mb-6 leading-relaxed">
+              Tu pedido quedó registrado. Pagás en efectivo al retirarlo o recibirlo — te contactamos para coordinar.
+            </p>
+
+            <div className="space-y-3">
+              {storeConfig?.whatsapp_number && (
+                <a
+                  href={`https://wa.me/${storeConfig.whatsapp_number.replace(/\D/g, '')}?text=Hola! Realicé el pedido %23${currentOrderId?.slice(0, 8).toUpperCase() ?? ''} por ${formatPrice(orderTotal)} para pagar en efectivo.`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full py-3.5 bg-[var(--color-charcoal)] text-white text-xs tracking-[0.2em] uppercase text-center hover:bg-[var(--color-stone)] transition-colors"
+                >
+                  Coordinar por WhatsApp
+                </a>
+              )}
+              <Link
+                href={shopHref}
+                className="block w-full py-3 border border-[var(--color-border)] text-xs tracking-[0.2em] uppercase text-center text-[var(--color-stone)] hover:border-[var(--color-charcoal)] hover:text-[var(--color-charcoal)] transition-colors"
+              >
+                Seguir comprando
+              </Link>
+            </div>
           </div>
         </main>
         <Footer {...footerProps} />
@@ -738,6 +804,18 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                       <span className="text-[var(--color-stone)]">→</span>
                     </button>
                   )}
+                  {storeConfig?.cash_enabled && (
+                    <button onClick={() => setShowCashConfirm(true)} disabled={loading} className="w-full flex items-center gap-4 p-5 border border-[var(--color-border)] hover:border-[var(--color-charcoal)] transition-colors text-left disabled:opacity-60">
+                      <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Banknote size={20} className="text-amber-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-light text-[var(--color-charcoal)]">Efectivo en el local</p>
+                        <p className="text-xs text-[var(--color-stone)] mt-0.5">Pagás al retirar o recibir el pedido</p>
+                      </div>
+                      <span className="text-[var(--color-stone)]">→</span>
+                    </button>
+                  )}
                   {error && <p className="text-sm text-red-500">{error}</p>}
                   <button onClick={() => setStep('datos')} className="text-xs text-[var(--color-stone)] hover:text-[var(--color-charcoal)] transition-colors">
                     ← Volver a mis datos
@@ -845,6 +923,33 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
               </button>
               <button
                 onClick={() => { setShowTransferConfirm(false); handleTransferencia() }}
+                disabled={loading}
+                className="flex-1 py-3 bg-[var(--color-charcoal)] text-white text-xs tracking-[0.15em] uppercase hover:bg-[var(--color-stone)] transition-colors disabled:opacity-60"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCashConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white max-w-sm w-full p-6">
+            <p className="text-xs tracking-[0.2em] uppercase text-[var(--color-stone)] mb-2">Confirmar método de pago</p>
+            <h2 className="font-display text-2xl font-light text-[var(--color-charcoal)] mb-3">Efectivo en el local</h2>
+            <p className="text-sm text-[var(--color-stone)] font-light leading-relaxed mb-6">
+              Vas a pagar en <strong>efectivo</strong> al retirar o recibir tu pedido — no se cobra nada ahora. Si en realidad querías pagar con tarjeta, MercadoPago o transferencia, volvé atrás y elegí esa opción.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCashConfirm(false)}
+                className="flex-1 py-3 border border-[var(--color-border)] text-xs tracking-[0.15em] uppercase text-[var(--color-stone)] hover:border-[var(--color-charcoal)] hover:text-[var(--color-charcoal)] transition-colors"
+              >
+                Volver
+              </button>
+              <button
+                onClick={() => { setShowCashConfirm(false); handleEfectivo() }}
                 disabled={loading}
                 className="flex-1 py-3 bg-[var(--color-charcoal)] text-white text-xs tracking-[0.15em] uppercase hover:bg-[var(--color-stone)] transition-colors disabled:opacity-60"
               >

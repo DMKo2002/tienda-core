@@ -55,6 +55,7 @@ export default function RegistroForm({ isUpgrade, initialNombre = '', initialApe
     nombre: initialNombre, apellido: initialApellido, email: initialEmail, password: '', confirmar: '',
     empresa: '', dni: '',
   })
+  const [sinEmpresa, setSinEmpresa] = useState(false)
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmar, setShowConfirmar] = useState(false)
@@ -105,7 +106,7 @@ export default function RegistroForm({ isUpgrade, initialNombre = '', initialApe
       return
     }
     if (tipo === 'wholesale') {
-      if (!form.empresa || !form.dni) { setError('Empresa y DNI son obligatorios'); return }
+      if ((!sinEmpresa && !form.empresa) || !form.dni) { setError('Empresa (o "No tengo empresa") y DNI son obligatorios'); return }
     }
     if (!turnstileToken) {
       setError('Completá la verificación de seguridad')
@@ -123,7 +124,8 @@ export default function RegistroForm({ isUpgrade, initialNombre = '', initialApe
           email: form.email,
           password: isUpgrade ? undefined : form.password,
           tipo,
-          empresa: form.empresa || undefined,
+          empresa: sinEmpresa ? undefined : (form.empresa || undefined),
+          sinEmpresa,
           dni: form.dni || undefined,
           turnstileToken,
         }),
@@ -253,10 +255,25 @@ export default function RegistroForm({ isUpgrade, initialNombre = '', initialApe
           {tipo === 'wholesale' && (
             <>
               <div>
-                <label className="block text-[10px] tracking-[0.15em] uppercase text-[var(--color-stone)] mb-1.5">Nombre de la Empresa *</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[10px] tracking-[0.15em] uppercase text-[var(--color-stone)]">
+                    Nombre de la Empresa {!sinEmpresa && '*'}
+                  </label>
+                  <label className="flex items-center gap-1.5 text-[11px] text-[var(--color-stone)] cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={sinEmpresa}
+                      onChange={e => { setSinEmpresa(e.target.checked); if (e.target.checked) set('empresa', '') }}
+                      className="accent-[var(--color-charcoal)]"
+                    />
+                    No tengo empresa
+                  </label>
+                </div>
                 <input
-                  className="w-full px-3 py-2.5 border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:border-[var(--color-charcoal)] transition-colors"
-                  value={form.empresa} onChange={e => set('empresa', e.target.value)} required
+                  className="w-full px-3 py-2.5 border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:border-[var(--color-charcoal)] transition-colors disabled:bg-zinc-100 disabled:text-[var(--color-stone)]"
+                  value={form.empresa} onChange={e => set('empresa', e.target.value)} required={!sinEmpresa}
+                  disabled={sinEmpresa}
+                  placeholder={sinEmpresa ? 'Sin empresa' : ''}
                 />
               </div>
               <div>
