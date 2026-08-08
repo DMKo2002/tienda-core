@@ -271,7 +271,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
     if (!apellido.trim()) { setError('El apellido es obligatorio'); return }
     if (!email.trim()) { setError('El email es obligatorio'); return }
     if (!phone.trim()) { setError('El teléfono es obligatorio'); return }
-    if (!cuil.trim()) { setError('El CUIL/CUIT es obligatorio'); return }
+    if (!cuil.trim()) { setError('El DNI/CUIT es obligatorio'); return }
     if (!addressStreet.trim()) { setError('La dirección es obligatoria'); return }
     if (!addressCity.trim()) { setError('La localidad es obligatoria'); return }
     if (!addressProvince.trim()) { setError('La provincia es obligatoria'); return }
@@ -636,7 +636,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className={labelClass}>CUIL / CUIT *</label>
+                        <label className={labelClass}>DNI / CUIT *</label>
                         <input className={inputClass} value={cuil} onChange={e => setCuil(e.target.value)} placeholder="20-12345678-9" />
                       </div>
                       <div>
@@ -726,7 +726,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                       muchos mayoristas despachan con expreso y no cargan nada acá,
                       pero igual necesitan estos datos para imprimir la etiqueta. */}
                   <div className="space-y-4 pt-2">
-                    <p className="text-xs tracking-[0.2em] uppercase text-[var(--color-stone)]">Dirección de envío</p>
+                    <p className="text-xs tracking-[0.2em] uppercase text-[var(--color-stone)]">Dirección</p>
                     <div>
                       <label className={labelClass}>Calle y número *</label>
                       <input className={inputClass} value={addressStreet} onChange={e => setAddressStreet(e.target.value)} placeholder="Av. Corrientes 1234" />
