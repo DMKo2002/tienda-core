@@ -37,7 +37,8 @@
     "./CheckoutPage": "./src/components/shop/CheckoutPage.tsx",
     "./seo": "./src/lib/seo.ts",
     "./sitemap": "./src/app-helpers/sitemap.ts",
-    "./robots": "./src/app-helpers/robots.ts"
+    "./robots": "./src/app-helpers/robots.ts",
+    "./GoogleAnalytics": "./src/components/analytics/GoogleAnalytics.tsx"
   },
   "peerDependencies": {
     "next": ">=14.0.0",
