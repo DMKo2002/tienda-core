@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useCart } from './CartContext'
 import { ShoppingBag, Check } from 'lucide-react'
 
@@ -373,6 +374,13 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
           </>
         )}
       </button>
+
+      <Link
+        href="/carrito"
+        className="w-full py-4 text-xs tracking-[0.2em] uppercase font-medium transition-all duration-300 flex items-center justify-center gap-3 bg-white text-[var(--color-charcoal)] border border-[var(--color-charcoal)] hover:bg-[var(--color-border)]"
+      >
+        Ir al carrito
+      </Link>
 
     </div>
   )
