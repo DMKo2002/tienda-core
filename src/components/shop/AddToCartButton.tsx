@@ -13,6 +13,11 @@ interface Variant {
   // nombre. Si no está seteado (variantes viejas), se deriva del nombre.
   color_hex?: string | null
   stock: number
+  // Override manual desde Panel Admin ("Sin stock" tildado sobre esa
+  // variante puntual) — no confundir con el stock numérico. Aplica sea cual
+  // sea el modo de stock del tenant (incluido ignoreStock). undefined/true
+  // = disponible, false = no disponible.
+  active?: boolean
   price_rules: { type: string; price: number; compare_at_price?: number; min_qty: number; active: boolean }[]
 }
 
@@ -88,27 +93,33 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
   const [added, setAdded] = useState(false)
   const [stockError, setStockError] = useState<string | null>(null)
 
-  function getVariantStock(size: string | null, color: string | null): number {
-    const v = product.variants.find(v => {
+  function findVariant(size: string | null, color: string | null): Variant | undefined {
+    return product.variants.find(v => {
       const sm = sizes.length === 0 || v.size === size
       const cm = colors.length === 0 || v.color === color
       return sm && cm
     })
-    return v?.stock ?? 0
+  }
+
+  // Disponible para la venta: existe, no está tildada "Sin stock" manualmente
+  // en Panel Admin (active=false — override que corre sea cual sea el modo
+  // de stock del tenant) y, si el tenant SÍ controla stock, tiene unidades.
+  function isVariantSellable(size: string | null, color: string | null): boolean {
+    const v = findVariant(size, color)
+    if (!v || v.active === false) return false
+    return ignoreStock || v.stock > 0
   }
 
   function isSizeAvailable(size: string): boolean {
-    if (ignoreStock) return true
-    if (colors.length === 0) return getVariantStock(size, null) > 0
-    if (selectedColor) return getVariantStock(size, selectedColor) > 0
-    return colors.some(c => getVariantStock(size, c) > 0)
+    if (colors.length === 0) return isVariantSellable(size, null)
+    if (selectedColor) return isVariantSellable(size, selectedColor)
+    return colors.some(c => isVariantSellable(size, c))
   }
 
   function isColorAvailable(color: string): boolean {
-    if (ignoreStock) return true
-    if (sizes.length === 0) return getVariantStock(null, color) > 0
-    if (selectedSize) return getVariantStock(selectedSize, color) > 0
-    return sizes.some(s => getVariantStock(s, color) > 0)
+    if (sizes.length === 0) return isVariantSellable(null, color)
+    if (selectedSize) return isVariantSellable(selectedSize, color)
+    return sizes.some(s => isVariantSellable(s, color))
   }
 
   const selectedVariant = product.variants.find(v => {
@@ -133,7 +144,14 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
   const wholesalePrice = isWholesale
     ? selectedVariant?.price_rules?.find(p => p.type === 'wholesale' && p.active)
     : undefined
-  const inStock = ignoreStock || (selectedVariant?.stock ?? 0) > 0
+  // El override manual ("Sin stock" en Panel Admin) corre siempre, sea cual
+  // sea el modo de stock del tenant — por eso se chequea aparte del ignoreStock.
+  const variantUnavailable = selectedVariant?.active === false
+  const inStock = !variantUnavailable && (ignoreStock || (selectedVariant?.stock ?? 0) > 0)
+  // En modo ignoreStock normalmente no se muestra cartel/estado de "sin
+  // stock" (el stock no se controla) — salvo que la variante puntual esté
+  // tildada como no disponible, que sí tiene que mostrarse siempre.
+  const showAsOutOfStock = !inStock && (!ignoreStock || variantUnavailable)
 
   // El mínimo (tanto para precio mayorista como para el piso de compra) se
   // exige por ARTÍCULO, sumando todas las variantes (talle/color) de este
@@ -161,6 +179,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
 
   function handleAddToCart() {
     if (!selectedVariant || !effectivePrice) return
+    if (selectedVariant.active === false) return
     const maxStock = selectedVariant.stock ?? 0
     if (!ignoreStock) {
       if (maxStock === 0) return
@@ -339,7 +358,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
         )}
       </div>
 
-      {!inStock && !ignoreStock && (
+      {showAsOutOfStock && (
         <p className="text-xs text-[var(--color-stone)] tracking-wide">Sin stock disponible</p>
       )}
 
@@ -355,7 +374,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
         className={`w-full py-4 text-xs tracking-[0.2em] uppercase font-medium transition-all duration-300 flex items-center justify-center gap-3 ${
           added
             ? 'bg-[var(--color-stone)] text-white cursor-default'
-            : (!inStock && !ignoreStock)
+            : showAsOutOfStock
             ? 'bg-[var(--color-border)] text-[var(--color-stone)] cursor-not-allowed opacity-60'
             : 'bg-[var(--color-charcoal)] text-white hover:bg-[var(--color-stone)] disabled:opacity-40 disabled:cursor-not-allowed'
         }`}
@@ -365,7 +384,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
             <Check size={16} strokeWidth={1.5} />
             Agregado al carrito
           </>
-        ) : (!inStock && !ignoreStock) ? (
+        ) : showAsOutOfStock ? (
           'Sin stock'
         ) : (
           <>
