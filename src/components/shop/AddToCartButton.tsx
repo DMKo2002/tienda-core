@@ -377,7 +377,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
 
       <Link
         href="/carrito"
-        className="w-full py-4 text-xs tracking-[0.2em] uppercase font-medium transition-all duration-300 flex items-center justify-center gap-3 bg-white text-[var(--color-charcoal)] border border-[var(--color-charcoal)] hover:bg-[var(--color-border)]"
+        className="w-full py-4 text-xs tracking-[0.2em] uppercase font-medium transition-all duration-300 flex items-center justify-center gap-3 bg-transparent text-[var(--color-charcoal)] border border-[var(--color-charcoal)] hover:bg-[var(--color-charcoal)] hover:text-white"
       >
         Ir al carrito
       </Link>
