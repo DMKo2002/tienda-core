@@ -38,7 +38,10 @@
     "./seo": "./src/lib/seo.ts",
     "./sitemap": "./src/app-helpers/sitemap.ts",
     "./robots": "./src/app-helpers/robots.ts",
-    "./GoogleAnalytics": "./src/components/analytics/GoogleAnalytics.tsx"
+    "./GoogleAnalytics": "./src/components/analytics/GoogleAnalytics.tsx",
+    "./MetaPixel": "./src/components/analytics/MetaPixel.tsx",
+    "./GoogleAdsTag": "./src/components/analytics/GoogleAdsTag.tsx",
+    "./TikTokPixel": "./src/components/analytics/TikTokPixel.tsx"
   },
   "peerDependencies": {
     "next": ">=14.0.0",
