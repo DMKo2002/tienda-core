@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useCart } from './CartContext'
 import { ShoppingBag, Check } from 'lucide-react'
+import { trackMetaEvent } from '../../lib/meta-pixel-events'
 
 interface Variant {
   id: string
@@ -177,6 +178,21 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
     ? (product.max_installments ? Math.min(interestFreeInstallments, product.max_installments) : interestFreeInstallments)
     : 0
 
+  // ViewContent: se dispara una sola vez al montar la ficha de producto
+  // (no en cada cambio de talle/color). AddToCartButton vive en la ficha de
+  // producto de las 6 tiendas, así que es el lugar más simple para cubrir
+  // este evento sin tocar cada template por separado.
+  useEffect(() => {
+    trackMetaEvent('ViewContent', {
+      content_ids: [product.id],
+      content_type: 'product',
+      content_name: product.name,
+      value: retailPrice ?? effectivePrice ?? undefined,
+      currency: 'ARS',
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id])
+
   function handleAddToCart() {
     if (!selectedVariant || !effectivePrice) return
     if (selectedVariant.active === false) return
@@ -213,6 +229,14 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
       quantity,
       stock: cartStock,
       minQty,
+    })
+    trackMetaEvent('AddToCart', {
+      content_ids: [product.id],
+      content_type: 'product',
+      content_name: product.name,
+      value: effectivePrice * quantity,
+      currency: 'ARS',
+      num_items: quantity,
     })
     setAdded(true)
     setStockError(null)

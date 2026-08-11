@@ -7,6 +7,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, CreditCard, Building2, ImageOff, Check, Banknote } from 'lucide-react'
 import { createClient, TENANT_ID } from '../../lib/supabase'
+import { trackMetaEvent } from '../../lib/meta-pixel-events'
 import MercadoPagoBrick from './MercadoPagoBrick'
 
 const PROVINCIAS = [
@@ -149,6 +150,24 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
   const [notes, setNotes] = useState('')
   const [copied, setCopied] = useState<'alias' | 'cbu' | null>(null)
   const [showCashConfirm, setShowCashConfirm] = useState(false)
+  // Evita disparar InitiateCheckout más de una vez por visita a esta página
+  // (re-renders, cambios de paso, etc. no deben re-disparar el evento).
+  const initiateCheckoutFired = useRef(false)
+
+  // InitiateCheckout: entrada al checkout con items reales en el carrito.
+  useEffect(() => {
+    if (initiateCheckoutFired.current) return
+    if (items.length === 0) return
+    initiateCheckoutFired.current = true
+    trackMetaEvent('InitiateCheckout', {
+      content_ids: [...new Set(items.map(i => i.productId).filter(Boolean))] as string[],
+      content_type: 'product',
+      value: total,
+      currency: 'ARS',
+      num_items: items.reduce((sum, i) => sum + i.quantity, 0),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length])
 
   useEffect(() => {
     const tenantId = TENANT_ID()
@@ -340,7 +359,27 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
     setStep('tarjeta')
   }
 
+  // Purchase: con el valor real del pedido (incluye envío). Se dispara con
+  // los items todavía en el carrito (antes de clearCart) para tener
+  // content_ids/num_items correctos.
+  // - MercadoPago: solo cuando el pago queda aprobado en el momento
+  //   (handleMpApproved) — nunca en pending/rejected.
+  // - Transferencia / efectivo: el pago se confirma después manualmente
+  //   (comprobante por WhatsApp / al retirar), pero por decisión del negocio
+  //   igual se dispara acá, al generar el pedido, para no perder esos
+  //   públicos de retargeting.
+  function firePurchase(value: number) {
+    trackMetaEvent('Purchase', {
+      content_ids: [...new Set(items.map(i => i.productId).filter(Boolean))] as string[],
+      content_type: 'product',
+      value,
+      currency: 'ARS',
+      num_items: items.reduce((sum, i) => sum + i.quantity, 0),
+    })
+  }
+
   function handleMpApproved() {
+    firePurchase(orderTotal)
     clearCart()
     setMpPaymentStatus('approved')
     setStep('confirmacion')
@@ -361,6 +400,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
     if (!order) return
     setCurrentOrderId(order.id)
     setOrderTotal(totalConEnvio)
+    firePurchase(totalConEnvio)
     clearCart()
     setStep('qr')
     setLoading(false)
@@ -371,6 +411,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
     if (!order) return
     setCurrentOrderId(order.id)
     setOrderTotal(totalConEnvio)
+    firePurchase(totalConEnvio)
     clearCart()
     setStep('efectivo')
     setLoading(false)
