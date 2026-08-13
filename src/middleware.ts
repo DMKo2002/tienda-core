@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse, NextFetchEvent } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
+// Bots/crawlers/monitores conocidos que NO deben contar como "visita" para
+// el medidor de plan (tenant_visits). Cubre buscadores, crawlers de IA,
+// previews de redes sociales/mensajería, SEO tools, y monitores de uptime.
+// Ver: alerta de Vercel del 2026-08-10 (facebookexternalhit) + auditoría de
+// superadmin del 2026-08-13 (Yenine Sweaters: 298.742 visitas / 7 pedidos).
+const BOT_UA_REGEX =
+  /bot|crawl|spider|slurp|facebookexternalhit|facebookcatalog|meta-externalagent|whatsapp|telegram|discordbot|slackbot|twitterbot|linkedinbot|pinterest|redditbot|applebot|googlebot|bingbot|duckduckbot|yandexbot|baiduspider|gptbot|chatgpt-user|oai-searchbot|ccbot|claudebot|anthropic-ai|perplexitybot|bytespider|ahrefsbot|semrushbot|mj12bot|dotbot|screaming\s*frog|uptimerobot|pingdom|statuscake|better\s*uptime|site24x7|headlesschrome|phantomjs|puppeteer|playwright|curl\/|wget\/|python-requests|node-fetch|go-http-client|okhttp|axios\/|postmanruntime|insomnia/i
+
 export async function middleware(req: NextRequest, event: NextFetchEvent) {
   const requestHeaders = new Headers(req.headers)
 
@@ -73,16 +81,23 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
 
   // 3. Medición de visitas del mes (límite del plan — ver Panel Admin
   //    /dashboard/uso). Solo pageviews reales: GET de páginas, sin /api,
-  //    sin assets (path con extensión) y sin prefetch del router.
+  //    sin assets (path con extensión), sin prefetch del router, y sin
+  //    bots/crawlers/monitores conocidos (ver BOT_UA_REGEX arriba — esta
+  //    métrica determina el cupo de plan del tenant, no debe inflarse con
+  //    tráfico no-humano).
   //    Fire-and-forget via waitUntil — nunca frena la respuesta.
   const path = req.nextUrl.pathname
+  const userAgent = req.headers.get('user-agent') ?? ''
+  const esBot = userAgent === '' || BOT_UA_REGEX.test(userAgent)
+
   const esPageview =
     !!tenantId &&
     req.method === 'GET' &&
     !path.startsWith('/api') &&
     !path.includes('.') &&
     req.headers.get('purpose') !== 'prefetch' &&
-    !req.headers.get('next-router-prefetch')
+    !req.headers.get('next-router-prefetch') &&
+    !esBot
 
   if (esPageview) {
     event.waitUntil(
