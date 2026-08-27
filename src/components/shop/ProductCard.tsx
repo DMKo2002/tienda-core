@@ -34,6 +34,12 @@ interface ProductCardProps {
   variantId?: string | null
   stock?: number
   ignoreStock?: boolean
+  // Texto del boton de compra rapida cuando canQuickBuy es true. Opcional —
+  // si no se pasa, sigue diciendo "Agregar al carrito" como siempre (ningun
+  // template existente cambia). Pensado para que cada plantilla pueda usar
+  // su propio texto (ej. Bazaar usa "Comprar") sin duplicar la logica de
+  // canQuickBuy afuera ni tapar el boton con CSS.
+  buyButtonLabel?: string
 }
 
 const formatPrice = (n: number) =>
@@ -125,6 +131,7 @@ export default function ProductCard({
   id, name, slug, coverUrl, images = [], retailPrice, retailCompareAt, wholesalePrice,
   showWholesale = false, showPrices = true, priceVisibility = 'all', isRetailUser = false, index = 0, colors = [], sizes = [],
   imageRatio = '2:3', variantId = null, stock = 0, ignoreStock = false,
+  buyButtonLabel = 'Agregar al carrito',
 }: ProductCardProps) {
 
   // Props pre-procesadas desde tienda/page.tsx:
@@ -351,7 +358,7 @@ export default function ProductCard({
             ) : (
               <>
                 <ShoppingBag size={13} strokeWidth={1.5} />
-                Agregar al carrito
+                {buyButtonLabel}
               </>
             )}
           </button>
