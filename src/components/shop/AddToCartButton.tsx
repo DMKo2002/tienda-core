@@ -6,6 +6,7 @@ import { useCart } from './CartContext'
 import { ShoppingBag, Check } from 'lucide-react'
 import { trackMetaEvent } from '../../lib/meta-pixel-events'
 import ProductAttributes, { AttrConfig } from './ProductAttributes'
+import { useVariantSelection, findVariantFor } from './VariantSelectionContext'
 
 interface Variant {
   id: string
@@ -96,18 +97,23 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
   const effRowLabel = columnType === 'text' ? (rowLabel.trim() || 'Opción') : 'Talle'
   const effColumnLabel = columnType === 'text' ? (columnLabel.trim() || 'Variante') : 'Color'
   const { addItem, items: cartItems } = useCart()
-  const [selectedSize, setSelectedSize] = useState<string | null>(sizes[0] ?? null)
-  const [selectedColor, setSelectedColor] = useState<string | null>(colors[0] ?? null)
+  // La selección se comparte con el bloque de precio a través del provider,
+  // para que el precio de arriba cambie junto con la variante elegida. Si el
+  // componente se usa suelto (sin provider) cae en su propio estado local, así
+  // que sigue funcionando igual que antes.
+  const sharedSelection = useVariantSelection()
+  const [localSize, setLocalSize] = useState<string | null>(sizes[0] ?? null)
+  const [localColor, setLocalColor] = useState<string | null>(colors[0] ?? null)
+  const selectedSize = sharedSelection ? sharedSelection.selectedSize : localSize
+  const setSelectedSize = sharedSelection ? sharedSelection.setSelectedSize : setLocalSize
+  const selectedColor = sharedSelection ? sharedSelection.selectedColor : localColor
+  const setSelectedColor = sharedSelection ? sharedSelection.setSelectedColor : setLocalColor
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
   const [stockError, setStockError] = useState<string | null>(null)
 
   function findVariant(size: string | null, color: string | null): Variant | undefined {
-    return product.variants.find(v => {
-      const sm = sizes.length === 0 || v.size === size
-      const cm = colors.length === 0 || v.color === color
-      return sm && cm
-    })
+    return findVariantFor(product.variants, sizes, colors, size, color)
   }
 
   // Disponible para la venta: existe, no está tildada "Sin stock" manualmente
@@ -131,11 +137,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
     return sizes.some(s => isVariantSellable(s, color))
   }
 
-  const selectedVariant = product.variants.find(v => {
-    const sizeMatch = sizes.length === 0 || v.size === selectedSize
-    const colorMatch = colors.length === 0 || v.color === selectedColor
-    return sizeMatch && colorMatch
-  })
+  const selectedVariant = findVariant(selectedSize, selectedColor)
 
   // Hex real guardado para un color — busca cualquier variante con ese nombre
   // que tenga color_hex seteado; si no hay ninguna (variante vieja, previa a

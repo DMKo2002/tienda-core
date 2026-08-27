@@ -12,6 +12,8 @@
     "./MobileFilterDrawer": "./src/components/shop/MobileFilterDrawer.tsx",
     "./ProductGallery": "./src/components/shop/ProductGallery.tsx",
     "./ProductAttributes": "./src/components/shop/ProductAttributes.tsx",
+    "./ProductPrice": "./src/components/shop/ProductPrice.tsx",
+    "./VariantSelectionContext": "./src/components/shop/VariantSelectionContext.tsx",
     "./LogoutButton": "./src/components/cuenta/LogoutButton.tsx",
     "./RegistroPage": "./src/components/cuenta/RegistroPage.tsx",
     "./MisDatosPage": "./src/components/cuenta/MisDatosPage.tsx",
