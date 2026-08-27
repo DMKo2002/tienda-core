@@ -39,6 +39,11 @@ const FUNCTIONAL_FIELDS = [
   'variant_column_type',
   'variant_row_label',
   'variant_column_label',
+  // Config de labels de los atributos adicionales del tenant (ej: la key
+  // "contenido_neto" -> label "Contenido neto") — la necesita ProductAttributes
+  // para mostrar un nombre lindo en vez de la key cruda guardada en
+  // variants.attributes. Ver ProductAttributes.tsx.
+  'variant_attributes',
   'min_qty_per_variant',
   'registration_visibility',
   'privacy_policy',
