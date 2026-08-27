@@ -40,6 +40,12 @@ interface ProductCardProps {
   // su propio texto (ej. Bazaar usa "Comprar") sin duplicar la logica de
   // canQuickBuy afuera ni tapar el boton con CSS.
   buyButtonLabel?: string
+  // Si true, no renderiza el boton de compra rapida aunque canQuickBuy sea
+  // true — para templates que prefieren manejar su propio boton (hermano,
+  // afuera de este componente) para TODAS las tarjetas sin excepcion, en vez
+  // de mezclar dos estructuras distintas. Opcional, default false — ningun
+  // template existente cambia.
+  hideQuickBuyButton?: boolean
 }
 
 const formatPrice = (n: number) =>
@@ -131,7 +137,7 @@ export default function ProductCard({
   id, name, slug, coverUrl, images = [], retailPrice, retailCompareAt, wholesalePrice,
   showWholesale = false, showPrices = true, priceVisibility = 'all', isRetailUser = false, index = 0, colors = [], sizes = [],
   imageRatio = '2:3', variantId = null, stock = 0, ignoreStock = false,
-  buyButtonLabel = 'Agregar al carrito',
+  buyButtonLabel = 'Agregar al carrito', hideQuickBuyButton = false,
 }: ProductCardProps) {
 
   // Props pre-procesadas desde tienda/page.tsx:
@@ -336,7 +342,7 @@ export default function ProductCard({
         </div>
 
         {/* Comprar directo — solo productos simples (sin talle/color real) con variantId */}
-        {canQuickBuy && showPrices && (
+        {canQuickBuy && showPrices && !hideQuickBuyButton && (
           <button
             type="button"
             onClick={inStock ? handleQuickBuy : undefined}
