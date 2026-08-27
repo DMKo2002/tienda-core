@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useCart } from './CartContext'
 import { ShoppingBag, Check } from 'lucide-react'
 import { trackMetaEvent } from '../../lib/meta-pixel-events'
+import ProductAttributes, { AttrConfig } from './ProductAttributes'
 
 interface Variant {
   id: string
@@ -19,6 +20,10 @@ interface Variant {
   // sea el modo de stock del tenant (incluido ignoreStock). undefined/true
   // = disponible, false = no disponible.
   active?: boolean
+  // Atributos adicionales PROPIOS de esta variante (variants.attributes),
+  // cargados en Panel Admin celda por celda. Dos variantes del mismo producto
+  // pueden tener valores distintos (ej: peso 120 g vs 600 g).
+  attributes?: Record<string, any> | null
   price_rules: { type: string; price: number; compare_at_price?: number; min_qty: number; active: boolean }[]
 }
 
@@ -50,6 +55,9 @@ interface AddToCartButtonProps {
   // Vacío = "Opción"/"Variante" genérico. En modo 'color' siempre dice "Talle"/"Color".
   rowLabel?: string
   columnLabel?: string
+  // store_config.variant_attributes — de acá sale la etiqueta linda de cada
+  // atributo ("contenido_neto" -> "Contenido neto").
+  attrConfig?: AttrConfig[]
 }
 
 const formatPrice = (n: number) =>
@@ -84,7 +92,7 @@ function isLight(hex: string): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 > 180
 }
 
-export default function AddToCartButton({ product, sizes, colors, showPrices = true, ignoreStock = false, isWholesale = false, minQty = 1, interestFreeInstallments = null, columnType = 'color', rowLabel = '', columnLabel = '' }: AddToCartButtonProps) {
+export default function AddToCartButton({ product, sizes, colors, showPrices = true, ignoreStock = false, isWholesale = false, minQty = 1, interestFreeInstallments = null, columnType = 'color', rowLabel = '', columnLabel = '', attrConfig = [] }: AddToCartButtonProps) {
   const effRowLabel = columnType === 'text' ? (rowLabel.trim() || 'Opción') : 'Talle'
   const effColumnLabel = columnType === 'text' ? (columnLabel.trim() || 'Variante') : 'Color'
   const { addItem, items: cartItems } = useCart()
@@ -343,6 +351,10 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
           </div>
         </div>
       )}
+
+      {/* Atributos de la variante elegida — se actualizan al cambiar de
+          talle/color/opción, porque cada variante tiene los suyos. */}
+      <ProductAttributes attributes={selectedVariant?.attributes} attrConfig={attrConfig} />
 
       <div>
         <p className="text-xs tracking-[0.15em] uppercase text-[var(--color-stone)] mb-3">
