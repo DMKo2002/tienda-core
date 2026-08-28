@@ -50,10 +50,28 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
       if (slug) {
         const { data } = await supabaseTenant
           .from('tenants')
-          .select('id')
+          .select('id, domain')
           .eq('slug', slug)
           .eq('status', 'active')
           .maybeSingle()
+
+        // Si el tenant ya cargo su dominio propio, el subdominio .gounuri.com
+        // deja de servir la tienda en paralelo (contenido duplicado para
+        // Google: la misma tienda en dos URLs vivas) y redirige al dominio
+        // real. Se excluyen las rutas /api/ porque ahi pueden pegar webhooks
+        // externos (ej. pasarela de pago) que no toleran un redirect. Si el
+        // tenant todavia no tiene dominio propio, el subdominio sigue siendo
+        // su frontend normal, sin ningun cambio.
+        if (data?.domain && !req.nextUrl.pathname.startsWith('/api/')) {
+          const redirectUrl = req.nextUrl.clone()
+          redirectUrl.protocol = 'https:'
+          redirectUrl.host = data.domain
+          redirectUrl.port = ''
+          const redirectResponse = NextResponse.redirect(redirectUrl, 302)
+          response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie))
+          return redirectResponse
+        }
+
         tenantId = data?.id ?? null
       }
     } else {
