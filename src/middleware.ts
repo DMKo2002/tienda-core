@@ -50,19 +50,34 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
       if (slug) {
         const { data } = await supabaseTenant
           .from('tenants')
-          .select('id, domain')
+          .select('id, domain, domain_status')
           .eq('slug', slug)
           .eq('status', 'active')
           .maybeSingle()
 
-        // Si el tenant ya cargo su dominio propio, el subdominio .gounuri.com
-        // deja de servir la tienda en paralelo (contenido duplicado para
-        // Google: la misma tienda en dos URLs vivas) y redirige al dominio
-        // real. Se excluyen las rutas /api/ porque ahi pueden pegar webhooks
-        // externos (ej. pasarela de pago) que no toleran un redirect. Si el
-        // tenant todavia no tiene dominio propio, el subdominio sigue siendo
-        // su frontend normal, sin ningun cambio.
-        if (data?.domain && !req.nextUrl.pathname.startsWith('/api/')) {
+        // Si el tenant ya cargo su dominio propio Y ese dominio esta
+        // verificado (DNS delegado y funcionando), el subdominio
+        // .gounuri.com deja de servir la tienda en paralelo (contenido
+        // duplicado para Google: la misma tienda en dos URLs vivas) y
+        // redirige al dominio real. Dos guardas importantes:
+        // - domain_status !== 'verified' (ej. 'pending', DNS todavia no
+        //   delegado) NO redirige -- si no, se manda al visitante a un
+        //   dominio que todavia no responde y se rompe la unica direccion
+        //   que le funcionaba.
+        // - data.domain !== host evita el bucle infinito de los tenants
+        //   demo (atelier, axis, bazaar, glow, minimalista, mono), que
+        //   tienen su propio *.gounuri.com cargado como "domain".
+        // Se excluyen ademas las rutas /api/ porque ahi pueden pegar
+        // webhooks externos (ej. pasarela de pago) que no toleran un
+        // redirect. Si el tenant todavia no tiene dominio propio
+        // verificado, el subdominio sigue siendo su frontend normal, sin
+        // ningun cambio.
+        if (
+          data?.domain &&
+          data.domain !== host &&
+          data.domain_status === 'verified' &&
+          !req.nextUrl.pathname.startsWith('/api/')
+        ) {
           const redirectUrl = req.nextUrl.clone()
           redirectUrl.protocol = 'https:'
           redirectUrl.host = data.domain
