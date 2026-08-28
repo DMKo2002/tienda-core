@@ -31,6 +31,7 @@ const FUNCTIONAL_FIELDS = [
   'facebook_url',
   'tiktok_url',
   'branches',
+  'pickup_address',
   'video_360_url',
   'price_visibility',
   'product_image_ratio',
@@ -73,6 +74,7 @@ const MINIMAL_FIELDS = [
   'facebook_url',
   'tiktok_url',
   'branches',
+  'pickup_address',
 ].join(', ')
 
 /**
