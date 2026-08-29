@@ -51,6 +51,7 @@ const FUNCTIONAL_FIELDS = [
   'privacy_policy',
   'cookies_policy',
   'terms_and_conditions',
+  'consumer_defense_enabled',
   'transfer_cbu',
   'transfer_alias',
   'mp_enabled',
