@@ -592,3 +592,103 @@ export function emailBienvenidaCliente({
 </body>
 </html>`
 }
+// ── Email arrepentimiento (Botón de Arrepentimiento, Res. 424/2020) ─────────
+
+export function emailArrepentimientoRecibido({
+  storeName,
+  customerName,
+  trackingCode,
+  orderNumber,
+}: {
+  storeName: string
+  customerName: string
+  trackingCode: string
+  orderNumber?: string | null
+}): string {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:30px 16px;">
+<tr><td align="center">
+<table width="540" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+
+  <!-- Header -->
+  <tr><td style="background:#4f46e5;padding:20px 28px;">
+    <p style="margin:0;color:#fff;font-size:15px;font-weight:600;">Solicitud recibida — ${storeName}</p>
+  </td></tr>
+
+  <tr><td style="padding:28px 28px 24px;">
+    <p style="margin:0 0 16px;font-size:14px;color:#333;line-height:1.5;">Hola ${customerName}, recibimos tu solicitud de arrepentimiento${orderNumber ? ` sobre el pedido <strong>${orderNumber}</strong>` : ''}. Te vamos a contactar dentro de las próximas 24 horas.</p>
+    <div style="background:#f9f9f9;border-radius:4px;padding:16px;margin-bottom:8px;text-align:center;">
+      <p style="margin:0 0 4px;font-size:11px;color:#999;letter-spacing:1px;text-transform:uppercase;">Código de trámite</p>
+      <p style="margin:0;font-size:20px;font-weight:700;color:#111;letter-spacing:1px;">${trackingCode}</p>
+    </div>
+    <p style="margin:16px 0 0;font-size:12px;color:#999;">Guardá este código para hacer seguimiento de tu solicitud.</p>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="background:#f5f5f5;padding:14px 28px;text-align:center;">
+    <p style="margin:0;font-size:12px;color:#aaa;">Enviado automáticamente por tu tienda · ${storeName}</p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+}
+
+export function emailArrepentimientoNuevaSolicitud({
+  storeName,
+  trackingCode,
+  customerName,
+  customerEmail,
+  customerPhone,
+  orderNumber,
+  reason,
+}: {
+  storeName: string
+  trackingCode: string
+  customerName: string
+  customerEmail?: string | null
+  customerPhone?: string | null
+  orderNumber?: string | null
+  reason?: string | null
+}): string {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:30px 16px;">
+<tr><td align="center">
+<table width="540" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+
+  <!-- Header -->
+  <tr><td style="background:#d97706;padding:20px 28px;">
+    <p style="margin:0;color:#fff;font-size:15px;font-weight:600;">Nueva solicitud de arrepentimiento — ${storeName}</p>
+  </td></tr>
+
+  <tr><td style="padding:28px 28px 24px;">
+    <p style="margin:0 0 16px;font-size:13px;color:#666;">Tenés <strong>24 horas</strong> para responder según la normativa de Defensa del Consumidor. Código de trámite: <strong>${trackingCode}</strong></p>
+    <div style="background:#f9f9f9;border-radius:4px;padding:16px;">
+      <p style="margin:0 0 6px;font-size:11px;color:#999;letter-spacing:1px;text-transform:uppercase;">Cliente</p>
+      <p style="margin:0 0 2px;font-size:14px;font-weight:600;color:#111;">${customerName}</p>
+      ${customerEmail ? `<p style="margin:0 0 2px;font-size:13px;color:#555;">${customerEmail}</p>` : ''}
+      ${customerPhone ? `<p style="margin:0 0 2px;font-size:13px;color:#555;">${customerPhone}</p>` : ''}
+      ${orderNumber ? `<p style="margin:8px 0 0;font-size:13px;color:#555;">Pedido: <strong>${orderNumber}</strong></p>` : ''}
+      ${reason ? `<p style="margin:8px 0 0;font-size:13px;color:#555;">Motivo: ${reason}</p>` : ''}
+    </div>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="background:#f5f5f5;padding:14px 28px;text-align:center;">
+    <p style="margin:0;font-size:12px;color:#aaa;">Gestioná esta solicitud desde tu Panel Admin → Legal → Arrepentimiento</p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+}

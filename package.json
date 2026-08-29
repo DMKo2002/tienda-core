@@ -47,6 +47,8 @@
     "./TikTokPixel": "./src/components/analytics/TikTokPixel.tsx",
     "./VisitTracker": "./src/components/analytics/VisitTracker.tsx",
     "./api/track-visit": "./src/api/track-visit.ts",
+    "./api/arrepentimiento": "./src/api/arrepentimiento.ts",
+    "./ArrepentimientoForm": "./src/components/legal/ArrepentimientoForm.tsx",
     "./botid-config": "./src/lib/botid-config.ts"
   },
   "peerDependencies": {
