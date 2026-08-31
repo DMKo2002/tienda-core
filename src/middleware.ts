@@ -1,6 +1,28 @@
 import { NextRequest, NextResponse, NextFetchEvent } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
+// Página estática mínima para un tenant que existe pero no está activo
+// (suspendido por falta de pago, límite excedido, o a mano desde
+// Superadmin). A propósito no depende de datos del tenant (nombre/logo) para
+// no agregar un segundo query acá -- si se quiere algo con marca propia por
+// tienda, ver nota de David del 2026-08-31 y ampliarlo sin tocar la lógica
+// de resolución de arriba.
+const SUSPENDED_HTML = `<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tienda no disponible</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; background: #fafafa; color: #18181b;
+    display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 24px; }
+  .box { max-width: 420px; text-align: center; }
+  h1 { font-size: 1.25rem; margin-bottom: 8px; }
+  p { color: #71717a; line-height: 1.5; }
+</style></head>
+<body><div class="box">
+  <h1>Esta tienda no está disponible en este momento</h1>
+  <p>El dueño de esta tienda todavía puede acceder a su cuenta y a todos sus datos. Si buscabas comprar algo acá, contactate directo con la tienda para más información.</p>
+</div></body></html>`
+
 export async function middleware(req: NextRequest, event: NextFetchEvent) {
   const requestHeaders = new Headers(req.headers)
 
@@ -48,12 +70,30 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     if (host.endsWith('.gounuri.com')) {
       const slug = host.replace(/\.gounuri\.com$/, '')
       if (slug) {
+        // OJO (2026-08-31, bug real reportado por David en QA): antes este
+        // select ya filtraba por status='active', así que un tenant
+        // suspendido nunca "existía" para el middleware -- tenantId quedaba
+        // null y caía en el fallback de NEXT_PUBLIC_TENANT_ID de más abajo,
+        // que es el tenant DEMO del template (ej. minimalista). Resultado:
+        // la URL del tenant suspendido (ej. {slug}.gounuri.com) mostraba el
+        // catálogo de OTRA tienda (la demo) en vez de avisar que está
+        // suspendida. Ahora se trae el tenant SIN filtrar por status, para
+        // poder distinguir "no existe ningún tenant con este slug" (sigue
+        // cayendo al fallback de demo, sirve para previews) de "existe pero
+        // no está activo" (corta acá mismo con un aviso, nunca sigue de
+        // largo hacia el fallback de demo).
         const { data } = await supabaseTenant
           .from('tenants')
-          .select('id, domain, domain_status')
+          .select('id, status, domain, domain_status')
           .eq('slug', slug)
-          .eq('status', 'active')
           .maybeSingle()
+
+        if (data && data.status !== 'active' && !req.nextUrl.pathname.startsWith('/api/')) {
+          return new NextResponse(SUSPENDED_HTML, {
+            status: 503,
+            headers: { 'content-type': 'text/html; charset=utf-8' },
+          })
+        }
 
         // Si el tenant ya cargo su dominio propio Y ese dominio esta
         // verificado (DNS delegado y funcionando), el subdominio
@@ -92,10 +132,15 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     } else {
       const { data } = await supabaseTenant
         .from('tenants')
-        .select('id')
+        .select('id, status')
         .eq('domain', host)
-        .eq('status', 'active')
         .maybeSingle()
+      if (data && data.status !== 'active' && !req.nextUrl.pathname.startsWith('/api/')) {
+        return new NextResponse(SUSPENDED_HTML, {
+          status: 503,
+          headers: { 'content-type': 'text/html; charset=utf-8' },
+        })
+      }
       tenantId = data?.id ?? null
     }
   }
