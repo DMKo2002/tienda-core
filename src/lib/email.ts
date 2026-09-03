@@ -93,7 +93,7 @@ export function emailConfirmacionCliente({
   customIntro?: string | null
 }): string {
   const shortId = orderId.slice(0, 8).toUpperCase()
-  const paymentLabel = paymentMethod === 'mercadopago' ? 'MercadoPago' : paymentMethod === 'cash' ? 'Efectivo en el local' : 'Transferencia bancaria'
+  const paymentLabel = paymentMethod === 'mercadopago' ? 'MercadoPago' : paymentMethod === 'cash' ? 'Efectivo o Transferencia' : 'Transferencia bancaria'
 
   const rows = items.map(i => `
     <tr>
@@ -219,7 +219,7 @@ export function emailNotificacionDueno({
   addressZip?: string | null
 }): string {
   const shortId = orderId.slice(0, 8).toUpperCase()
-  const paymentLabel = paymentMethod === 'mercadopago' ? 'MercadoPago' : paymentMethod === 'cash' ? 'Efectivo en el local' : 'Transferencia bancaria'
+  const paymentLabel = paymentMethod === 'mercadopago' ? 'MercadoPago' : paymentMethod === 'cash' ? 'Efectivo o Transferencia' : 'Transferencia bancaria'
   const address = [addressStreet, addressCity, addressProvince, addressZip].filter(Boolean).join(', ')
 
   const rows = items.map(i => `

@@ -470,7 +470,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
         <main className="pt-28 min-h-screen flex items-center justify-center">
           <div className="max-w-sm w-full mx-auto px-6 text-center">
             <p className="text-xs tracking-[0.2em] uppercase text-[var(--color-stone)] mb-2">
-              Efectivo en el local
+              Efectivo o Transferencia
             </p>
             <h1 className="font-display text-4xl font-light text-[var(--color-charcoal)] mb-1">
               {formatPrice(orderTotal)}
@@ -851,8 +851,8 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
                         <Banknote size={20} className="text-amber-600" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-light text-[var(--color-charcoal)]">Efectivo en el local</p>
-                        <p className="text-xs text-[var(--color-stone)] mt-0.5">Pagás al retirar o recibir el pedido</p>
+                        <p className="text-sm font-light text-[var(--color-charcoal)]">Efectivo o Transferencia</p>
+                        <p className="text-xs text-[var(--color-stone)] mt-0.5">A confirmar por WhatsApp</p>
                       </div>
                       <span className="text-[var(--color-stone)]">→</span>
                     </button>
@@ -978,9 +978,9 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
           <div className="bg-white max-w-sm w-full p-6">
             <p className="text-xs tracking-[0.2em] uppercase text-[var(--color-stone)] mb-2">Confirmar método de pago</p>
-            <h2 className="font-display text-2xl font-light text-[var(--color-charcoal)] mb-3">Efectivo en el local</h2>
+            <h2 className="font-display text-2xl font-light text-[var(--color-charcoal)] mb-3">Efectivo o Transferencia</h2>
             <p className="text-sm text-[var(--color-stone)] font-light leading-relaxed mb-6">
-              Vas a pagar en <strong>efectivo</strong> al retirar o recibir tu pedido — no se cobra nada ahora. Si en realidad querías pagar con tarjeta, MercadoPago o transferencia, volvé atrás y elegí esa opción.
+              Te vamos a escribir para confirmar disponibilidad y coordinar el pago y la entrega.
             </p>
             <div className="flex gap-3">
               <button
