@@ -155,3 +155,94 @@ export function buildRobots(): MetadataRoute.Robots {
     sitemap: `${BASE_URL}/sitemap.xml`,
   }
 }
+
+// ── Datos estructurados (JSON-LD) ────────────────────────────────────────
+// Antes esto vivía duplicado byte a byte en cada uno de los 6 templates
+// (src/app/tienda/[slug]/page.tsx), con un bug: el campo `offers.url` usaba
+// `process.env.NEXT_PUBLIC_APP_URL`, una env var fija de build, en vez del
+// dominio real del tenant (custom domain o *.gounuri.com) — Google recibía
+// una URL de producto que no correspondía al dominio real. Ver diagnóstico
+// 2026-09-09 (indexación de mykonoslove.com / yeninesweaters.com).
+
+/**
+ * JSON-LD de un producto (página /tienda/[slug]).
+ * El caller pasa los datos ya calculados (precio, imagen de portada) porque
+ * cada template ya los resuelve para renderizar la página — evita duplicar
+ * esa lógica de negocio (reglas de precio, imagen de portada) acá.
+ */
+export function buildProductJsonLd(
+  product: { name: string; description?: string | null; slug: string; sku?: string | null },
+  storeName: string,
+  retailPrice: number | undefined,
+  coverImage?: string | null
+): Record<string, any> {
+  const baseUrl = getBaseUrl()
+  return {
+    '@context': 'https://schema.org/',
+    '@type': 'Product',
+    name: product.name,
+    description: product.description ?? `${product.name} - ${storeName}`,
+    ...(coverImage ? { image: [coverImage] } : {}),
+    ...(product.sku ? { sku: product.sku } : {}),
+    ...(retailPrice
+      ? {
+          offers: {
+            '@type': 'Offer',
+            url: `${baseUrl}/tienda/${product.slug}`,
+            priceCurrency: 'ARS',
+            price: retailPrice,
+            availability: 'https://schema.org/InStock',
+            seller: { '@type': 'Organization', name: storeName },
+          },
+        }
+      : {}),
+  }
+}
+
+/**
+ * JSON-LD de la tienda como Organization (home / layout raíz). Consulta sus
+ * propios datos (igual que buildStoreMetadata) para no forzar a cada layout
+ * a resolver tenant/config solo para esto.
+ */
+export async function buildOrganizationJsonLd(): Promise<Record<string, any> | null> {
+  try {
+    const supabase = await createServerSupabase()
+    const tenantId = getTenantId()
+    const [{ data: tenant }, { data: config }] = await Promise.all([
+      supabase.from('tenants').select('name').eq('id', tenantId).maybeSingle(),
+      supabase
+        .from('store_config')
+        .select('logo_url, whatsapp_number, instagram_url, facebook_url, tiktok_url')
+        .eq('tenant_id', tenantId)
+        .maybeSingle(),
+    ])
+    if (!tenant) return null
+
+    const baseUrl = getBaseUrl()
+    const sameAs = [
+      (config as any)?.instagram_url,
+      (config as any)?.facebook_url,
+      (config as any)?.tiktok_url,
+    ].filter(Boolean)
+
+    return {
+      '@context': 'https://schema.org/',
+      '@type': 'Organization',
+      name: tenant.name,
+      url: baseUrl,
+      ...((config as any)?.logo_url ? { logo: (config as any).logo_url } : {}),
+      ...(sameAs.length ? { sameAs } : {}),
+      ...((config as any)?.whatsapp_number
+        ? {
+            contactPoint: {
+              '@type': 'ContactPoint',
+              telephone: (config as any).whatsapp_number,
+              contactType: 'customer service',
+            },
+          }
+        : {}),
+    }
+  } catch {
+    return null
+  }
+}
