@@ -66,9 +66,18 @@ export async function buildStoreMetadata(fallbackDescription: string): Promise<M
     // Imagen para el preview al compartir el link (WhatsApp, Instagram, etc).
     // Sin esto, compartir la tienda no muestra ninguna imagen — se ve el link pelado.
     const ogImage = (config as any)?.hero_image_url ?? config?.logo_url ?? null
+    // metadataBase resuelve cualquier `alternates.canonical` relativo ('/',
+    // '/contacto', etc.) que cada page.tsx/layout.tsx declare, usando el
+    // dominio real del request (custom domain del tenant o *.gounuri.com) en
+    // vez de un dominio fijo -- necesario porque un mismo deploy sirve
+    // dominios distintos por tenant. Sin esto, un canonical relativo no
+    // tiene con qué resolverse a URL absoluta.
+    const baseUrl = getBaseUrl()
     return {
+      metadataBase: new URL(baseUrl),
       title: { default: homeTitle, template: `%s | ${storeName}` },
       description,
+      alternates: { canonical: '/' },
       ...(faviconUrl ? { icons: { icon: faviconUrl, apple: faviconUrl } } : {}),
       openGraph: {
         title: homeTitle,
