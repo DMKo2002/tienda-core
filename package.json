@@ -29,6 +29,7 @@
     "./api/actualizar-datos": "./src/api/actualizar-datos.ts",
     "./api/crear-pedido": "./src/api/crear-pedido.ts",
     "./api/nav-categories": "./src/api/nav-categories.ts",
+    "./api/meta-catalog-feed": "./src/api/meta-catalog-feed.ts",
     "./api/mp-preferencia": "./src/api/mp-preferencia.ts",
     "./api/mp-crear-pago": "./src/api/mp-crear-pago.ts",
     "./api/auth-callback": "./src/api/auth-callback.ts",
