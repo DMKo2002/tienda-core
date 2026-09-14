@@ -176,7 +176,7 @@ export async function GET(request: NextRequest) {
   return new NextResponse(rows.join('\n'), {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600', // 1h — suficiente margen entre re-fetches de Meta
+      'Cache-Control': 'public, max-age=120', // 2 min — Meta igual pide el feed en su propio horario, pero así nadie (nosotros, la CM) se queda mirando una versión vieja por una hora si lo abre en el navegador
     },
   })
 }
