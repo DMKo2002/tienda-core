@@ -114,8 +114,9 @@ export async function GET(request: NextRequest) {
   const host = request.headers.get('host') ?? request.nextUrl.host
   const baseUrl = `https://${host}`
 
-  const [{ data: tenant }, { data: products }] = await Promise.all([
+  const [{ data: tenant }, { data: storeConfig }, { data: products }] = await Promise.all([
     supabase.from('tenants').select('name').eq('id', tenantId).single(),
+    supabase.from('store_config').select('ignore_stock').eq('tenant_id', tenantId).single(),
     supabase
       .from('products')
       .select(
@@ -129,6 +130,12 @@ export async function GET(request: NextRequest) {
   ])
 
   const brand = tenant?.name ?? ''
+  // Igual que AddToCartButton.tsx / ProductCard.tsx: si el tenant tiene
+  // ignore_stock activo (productos a pedido, sin control real de stock), la
+  // tienda nunca los muestra como agotados — el feed tiene que reflejar lo
+  // mismo, o Meta excluye/despriorización de anuncios TODO el catálogo por
+  // figurar "out of stock" aunque en la tienda se vendan sin problema.
+  const ignoreStock = Boolean(storeConfig?.ignore_stock)
   const rows: string[] = [CSV_COLUMNS.join(',')]
 
   for (const product of (products ?? []) as Product[]) {
@@ -142,7 +149,7 @@ export async function GET(request: NextRequest) {
       const resolved = resolvePrice(variant.price_rules ?? [])
       if (!resolved) continue // sin ninguna price_rule utilizable — no se puede anunciar sin precio
 
-      const availability = (variant.stock ?? 0) > 0 ? 'in stock' : 'out of stock'
+      const availability = ignoreStock || (variant.stock ?? 0) > 0 ? 'in stock' : 'out of stock'
       const price = `${resolved.price.toFixed(2)} ARS`
 
       rows.push(
