@@ -49,6 +49,7 @@ export default function ProductGallery({ images, productName }: ProductGalleryPr
           alt={productName}
           fill
           sizes="(max-width: 768px) 100vw, 50vw"
+          quality={90}
           className="object-cover transition-opacity duration-200"
           priority
         />
