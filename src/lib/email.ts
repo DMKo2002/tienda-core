@@ -6,6 +6,12 @@
 
 const RESEND_API_URL = 'https://api.resend.com/emails'
 
+export interface EmailAttachment {
+  filename: string
+  // Buffer (ej. un PDF generado con @react-pdf/renderer) o ya en base64.
+  content: Buffer | string
+}
+
 export async function sendEmail({
   to,
   subject,
@@ -13,6 +19,7 @@ export async function sendEmail({
   from,
   fromName,
   replyTo,
+  attachments,
 }: {
   to: string
   subject: string
@@ -20,6 +27,7 @@ export async function sendEmail({
   from?: string
   fromName?: string   // nombre del remitente, ej: "Connors Store"
   replyTo?: string    // reply-to, ej: contacto@connors.com
+  attachments?: EmailAttachment[]   // ej: recibo en PDF adjunto
 }) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
@@ -42,6 +50,12 @@ export async function sendEmail({
         subject,
         html,
         ...(replyTo ? { reply_to: replyTo } : {}),
+        ...(attachments && attachments.length > 0 ? {
+          attachments: attachments.map(a => ({
+            filename: a.filename,
+            content: Buffer.isBuffer(a.content) ? a.content.toString('base64') : a.content,
+          })),
+        } : {}),
       }),
     })
     if (!res.ok) console.error('[email] Resend error:', await res.text())
@@ -342,6 +356,104 @@ export function emailPedidoEnviado({
 
   <tr><td style="padding:24px;text-align:center;border-top:1px solid #ede8e3;">
     <p style="margin:0;font-size:12px;color:#bbb;letter-spacing:1px;">${storeName.toUpperCase()} · GRACIAS POR TU COMPRA</p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+}
+
+// ── Email pedido modificado (edición manual desde Panel Admin) ─────────────
+// Opt-in: el tenant elige mandarlo o no cada vez que guarda una edición del
+// pedido (checkbox en el modal de Panel Admin) — nunca se dispara solo.
+
+export function emailPedidoModificado({
+  storeName,
+  orderId,
+  customerName,
+  items,
+  subtotal,
+  shippingCost,
+  shippingPriceOnRequest,
+  total,
+  shippingLabel,
+  customIntro,
+}: {
+  storeName: string
+  orderId: string
+  customerName: string
+  items: OrderItem[]
+  subtotal: number
+  shippingCost: number
+  shippingPriceOnRequest?: boolean
+  total: number
+  shippingLabel: string
+  customIntro?: string | null
+}): string {
+  const shortId = orderId.slice(0, 8).toUpperCase()
+
+  const rows = items.map(i => `
+    <tr>
+      <td style="padding:10px 0;border-bottom:1px solid #f0ece7;font-size:14px;color:#333;">
+        ${i.productName}${i.variantDesc ? `<br><span style="font-size:12px;color:#888;">${i.variantDesc}</span>` : ''}
+      </td>
+      <td style="padding:10px 0;border-bottom:1px solid #f0ece7;text-align:center;font-size:14px;color:#555;">×${i.quantity}</td>
+      <td style="padding:10px 0;border-bottom:1px solid #f0ece7;text-align:right;font-size:14px;color:#333;">${fmt(i.unitPrice * i.quantity)}</td>
+    </tr>`).join('')
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f7f4f1;font-family:Georgia,'Times New Roman',serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4f1;padding:40px 16px;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fff;">
+
+  <tr><td style="background:#1c1c1c;padding:32px;text-align:center;">
+    <p style="margin:0;color:#fff;font-size:20px;letter-spacing:5px;font-weight:300;">${storeName.toUpperCase()}</p>
+  </td></tr>
+
+  <tr><td style="padding:40px 40px 8px;">
+    <p style="margin:0 0 6px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#aaa;">✏️ Pedido actualizado</p>
+    <h1 style="margin:0 0 6px;font-size:28px;font-weight:300;color:#1c1c1c;">Tu pedido fue modificado</h1>
+    <p style="margin:0 0 28px;font-size:13px;color:#aaa;letter-spacing:1px;">Pedido #${shortId} · ${customerName.split(' ')[0]}</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#555;line-height:1.7;">
+      ${customIntro ?? 'Hicimos un ajuste en tu pedido. Te dejamos el detalle actualizado a continuación.'}
+    </p>
+  </td></tr>
+
+  <tr><td style="padding:0 40px 32px;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <thead>
+        <tr style="border-bottom:2px solid #1c1c1c;">
+          <th style="padding:8px 0;text-align:left;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:400;color:#888;">Producto</th>
+          <th style="padding:8px 0;text-align:center;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:400;color:#888;">Cant.</th>
+          <th style="padding:8px 0;text-align:right;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:400;color:#888;">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;">
+      <tr>
+        <td style="padding:5px 0;font-size:13px;color:#888;">Subtotal</td>
+        <td style="padding:5px 0;text-align:right;font-size:13px;color:#888;">${fmt(subtotal)}</td>
+      </tr>
+      <tr>
+        <td style="padding:5px 0;font-size:13px;color:#888;">Envío (${shippingLabel})</td>
+        <td style="padding:5px 0;text-align:right;font-size:13px;color:#888;">${shippingPriceOnRequest ? 'A convenir' : (shippingCost > 0 ? fmt(shippingCost) : 'Gratis')}</td>
+      </tr>
+      <tr>
+        <td style="padding:14px 0 6px;border-top:1px solid #e8e4df;font-size:18px;font-weight:400;color:#1c1c1c;">Total</td>
+        <td style="padding:14px 0 6px;border-top:1px solid #e8e4df;text-align:right;font-size:18px;font-weight:400;color:#1c1c1c;">${fmt(total)}</td>
+      </tr>
+    </table>
+  </td></tr>
+
+  <tr><td style="padding:24px;text-align:center;border-top:1px solid #ede8e3;">
+    <p style="margin:0;font-size:12px;color:#bbb;letter-spacing:1px;">${storeName.toUpperCase()} · ANTE CUALQUIER DUDA, ESCRIBINOS</p>
   </td></tr>
 
 </table>
