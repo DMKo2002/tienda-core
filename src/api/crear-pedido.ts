@@ -12,6 +12,24 @@ function realVariantId(compositeId: string): string {
   return compositeId.split('__')[0]
 }
 
+// Lee la cookie que pone AdAttribution.tsx (tienda-core/src/components/analytics)
+// cuando alguien entra a la tienda desde un anuncio con utm_source en la URL.
+// Fire-and-forget: cookie ausente o corrupta => todo null, nunca frena el pedido.
+function readAdAttribution(req: NextRequest): { utm_source: string | null; utm_medium: string | null; utm_campaign: string | null } {
+  try {
+    const raw = req.cookies.get('gounuri_attr')?.value
+    if (!raw) return { utm_source: null, utm_medium: null, utm_campaign: null }
+    const parsed = JSON.parse(decodeURIComponent(raw))
+    return {
+      utm_source: typeof parsed.utm_source === 'string' ? parsed.utm_source.slice(0, 100) : null,
+      utm_medium: typeof parsed.utm_medium === 'string' ? parsed.utm_medium.slice(0, 100) : null,
+      utm_campaign: typeof parsed.utm_campaign === 'string' ? parsed.utm_campaign.slice(0, 100) : null,
+    }
+  } catch {
+    return { utm_source: null, utm_medium: null, utm_campaign: null }
+  }
+}
+
 // Service role bypasa RLS — solo para operaciones server-side
 function createServiceClient() {
   return createClient(
@@ -28,6 +46,8 @@ export async function POST(req: NextRequest) {
   if (!success) {
     return NextResponse.json({ error: 'Demasiados intentos. Esperá unos segundos e intentá de nuevo.' }, { status: 429 })
   }
+
+  const attribution = readAdAttribution(req)
 
   try {
     const body = await req.json()
@@ -358,6 +378,9 @@ export async function POST(req: NextRequest) {
           price_on_request: shippingPriceOnRequest,
         },
         notes: notes || null,
+        utm_source: attribution.utm_source,
+        utm_medium: attribution.utm_medium,
+        utm_campaign: attribution.utm_campaign,
       })
       .select()
       .single()

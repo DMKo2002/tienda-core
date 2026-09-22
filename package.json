@@ -46,6 +46,7 @@
     "./MetaPixel": "./src/components/analytics/MetaPixel.tsx",
     "./GoogleAdsTag": "./src/components/analytics/GoogleAdsTag.tsx",
     "./TikTokPixel": "./src/components/analytics/TikTokPixel.tsx",
+    "./AdAttribution": "./src/components/analytics/AdAttribution.tsx",
     "./VisitTracker": "./src/components/analytics/VisitTracker.tsx",
     "./api/track-visit": "./src/api/track-visit.ts",
     "./api/arrepentimiento": "./src/api/arrepentimiento.ts",
