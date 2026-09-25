@@ -91,7 +91,7 @@ const MINIMAL_FIELDS = [
  *
  * Uso en un server component:
  *   const supabase = await createServerSupabase()
- *   const { tenant, config } = await getStoreData(supabase, TENANT_ID())
+ *   const { tenant, config } = await getStoreData(supabase, await TENANT_ID())
  */
 export async function getStoreData(
   supabase: SupabaseClient,

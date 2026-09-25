@@ -24,7 +24,7 @@ export default async function GoogleAdsTag() {
     const { data } = await supabase
       .from('store_config')
       .select('google_ads_id')
-      .eq('tenant_id', getTenantId())
+      .eq('tenant_id', await getTenantId())
       .maybeSingle()
     adsId = (data as any)?.google_ads_id?.trim() || null
   } catch {

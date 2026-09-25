@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createServerSupabase()
-    const tenantId = TENANT_ID()
+    const tenantId = await TENANT_ID()
     const normalizedEmail = String(email).trim().toLowerCase()
     const syntheticEmail = syntheticAuthEmail(tenantId, normalizedEmail)
 

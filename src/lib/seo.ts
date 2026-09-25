@@ -26,9 +26,9 @@ import { createServerSupabase, getTenantId } from './supabase-server'
 // El dominio varía por tenant (custom domain) — no se puede fijar con un env
 // var estático compartido por todo el deploy. Se arma desde el host real del
 // request, con NEXT_PUBLIC_APP_URL solo como fallback (local/build sin request).
-export function getBaseUrl(): string {
+export async function getBaseUrl(): Promise<string> {
   try {
-    const h = headers()
+    const h = await headers()
     const host = h.get('x-forwarded-host') ?? h.get('host')
     if (host && !host.includes('localhost') && !host.startsWith('127.')) {
       const proto = h.get('x-forwarded-proto') ?? 'https'
@@ -46,7 +46,7 @@ export function getBaseUrl(): string {
 export async function buildStoreMetadata(fallbackDescription: string): Promise<Metadata> {
   try {
     const supabase = await createServerSupabase()
-    const tenantId = getTenantId()
+    const tenantId = await getTenantId()
     const [{ data: tenant }, { data: config }] = await Promise.all([
       supabase.from('tenants').select('name').eq('id', tenantId).maybeSingle(),
       supabase
@@ -72,7 +72,7 @@ export async function buildStoreMetadata(fallbackDescription: string): Promise<M
     // vez de un dominio fijo -- necesario porque un mismo deploy sirve
     // dominios distintos por tenant. Sin esto, un canonical relativo no
     // tiene con qué resolverse a URL absoluta.
-    const baseUrl = getBaseUrl()
+    const baseUrl = await getBaseUrl()
     return {
       metadataBase: new URL(baseUrl),
       title: { default: homeTitle, template: `%s | ${storeName}` },
@@ -110,8 +110,8 @@ export async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
-  const BASE_URL = getBaseUrl()
-  const tenantId = getTenantId()
+  const BASE_URL = await getBaseUrl()
+  const tenantId = await getTenantId()
 
   const [{ data: products }, { data: categories }] = await Promise.all([
     supabase.from('products').select('slug, updated_at').eq('tenant_id', tenantId).eq('active', true),
@@ -142,8 +142,8 @@ export async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
   return [...staticRoutes, ...productRoutes, ...categoryRoutes]
 }
 
-export function buildRobots(): MetadataRoute.Robots {
-  const BASE_URL = getBaseUrl()
+export async function buildRobots(): Promise<MetadataRoute.Robots> {
+  const BASE_URL = await getBaseUrl()
   return {
     rules: [
       {
@@ -170,13 +170,13 @@ export function buildRobots(): MetadataRoute.Robots {
  * cada template ya los resuelve para renderizar la página — evita duplicar
  * esa lógica de negocio (reglas de precio, imagen de portada) acá.
  */
-export function buildProductJsonLd(
+export async function buildProductJsonLd(
   product: { name: string; description?: string | null; slug: string; sku?: string | null },
   storeName: string,
   retailPrice: number | undefined,
   coverImage?: string | null
-): Record<string, any> {
-  const baseUrl = getBaseUrl()
+): Promise<Record<string, any>> {
+  const baseUrl = await getBaseUrl()
   return {
     '@context': 'https://schema.org/',
     '@type': 'Product',
@@ -207,7 +207,7 @@ export function buildProductJsonLd(
 export async function buildOrganizationJsonLd(): Promise<Record<string, any> | null> {
   try {
     const supabase = await createServerSupabase()
-    const tenantId = getTenantId()
+    const tenantId = await getTenantId()
     const [{ data: tenant }, { data: config }] = await Promise.all([
       supabase.from('tenants').select('name').eq('id', tenantId).maybeSingle(),
       supabase
@@ -218,7 +218,7 @@ export async function buildOrganizationJsonLd(): Promise<Record<string, any> | n
     ])
     if (!tenant) return null
 
-    const baseUrl = getBaseUrl()
+    const baseUrl = await getBaseUrl()
     const sameAs = [
       (config as any)?.instagram_url,
       (config as any)?.facebook_url,

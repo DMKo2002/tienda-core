@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     if (!nombre) return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
 
     const service = createServiceSupabase()
-    const tenantId = TENANT_ID()
+    const tenantId = await TENANT_ID()
 
     // Resolver el customer: primero por auth_user_id, luego por email (mismo
     // fallback que /cuenta y RegistroPage — cubre customers importados).

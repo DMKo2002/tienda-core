@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const supabase = createServiceSupabase()
 
     const [{ data: config }, { data: order }, { data: orderItems }] = await Promise.all([
-      supabase.from('store_config').select('mp_access_token, mp_enabled').eq('tenant_id', TENANT_ID()).single(),
+      supabase.from('store_config').select('mp_access_token, mp_enabled').eq('tenant_id', await TENANT_ID()).single(),
       supabase.from('orders').select('id, tenant_id, total, payment_status').eq('id', order_id).single(),
       supabase.from('order_items').select('variants(products(max_installments))').eq('order_id', order_id),
     ])
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (!order || order.tenant_id !== TENANT_ID()) {
+    if (!order || order.tenant_id !== await TENANT_ID()) {
       return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 })
     }
     if (order.payment_status === 'paid') {
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     const payment = new Payment(client)
 
     const panelUrl = process.env.NEXT_PUBLIC_PANEL_URL
-    const notificationUrl = panelUrl ? `${panelUrl}/api/mp/webhook?tenant_id=${TENANT_ID()}` : undefined
+    const notificationUrl = panelUrl ? `${panelUrl}/api/mp/webhook?tenant_id=${await TENANT_ID()}` : undefined
 
     // Tope real de cuotas: el mínimo entre products.max_installments de los
     // productos de este pedido. Se recalcula acá (server-side) en vez de

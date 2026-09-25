@@ -11,7 +11,7 @@ export default async function MisDatosPage() {
   if (!user) redirect('/cuenta/login')
 
   const service = createServiceSupabase()
-  const tenantId = TENANT_ID()
+  const tenantId = await TENANT_ID()
 
   // Mismo fallback que /cuenta y RegistroPage: por auth_user_id primero,
   // por email después (cubre customers importados sin vincular todavía).
