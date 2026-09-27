@@ -29,7 +29,7 @@ export default async function RegistroPage({
   if (!user) redirect('/cuenta/login')
 
   const service = createServiceSupabase()
-  const tenantId = TENANT_ID()
+  const tenantId = await TENANT_ID()
 
   // Mismo fallback que usa /cuenta: primero por auth_user_id, después por
   // email (cubre customers importados cuyo auth_user_id no haya quedado

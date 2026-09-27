@@ -108,7 +108,7 @@ const CSV_COLUMNS = [
 ] as const
 
 export async function GET(request: NextRequest) {
-  const tenantId = TENANT_ID()
+  const tenantId = await TENANT_ID()
   const supabase = await createServerSupabase()
 
   const host = request.headers.get('host') ?? request.nextUrl.host

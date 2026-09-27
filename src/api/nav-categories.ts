@@ -8,7 +8,7 @@ export async function GET() {
   const { data } = await supabase
     .from('categories')
     .select('id, name, slug, parent_id')
-    .eq('tenant_id', TENANT_ID())
+    .eq('tenant_id', await TENANT_ID())
     .eq('active', true)
     .order('sort_order')
 

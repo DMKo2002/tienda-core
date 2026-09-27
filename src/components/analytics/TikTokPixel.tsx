@@ -18,7 +18,7 @@ export default async function TikTokPixel() {
     const { data } = await supabase
       .from('store_config')
       .select('tiktok_pixel_id')
-      .eq('tenant_id', getTenantId())
+      .eq('tenant_id', await getTenantId())
       .maybeSingle()
     pixelId = (data as any)?.tiktok_pixel_id?.trim() || null
   } catch {

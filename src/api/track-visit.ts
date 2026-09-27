@@ -24,7 +24,7 @@ export async function POST(_request: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  const tenantId = getTenantId()
+  const tenantId = await getTenantId()
   if (!tenantId) {
     return NextResponse.json({ ok: true })
   }

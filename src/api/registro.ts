@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     if (tipo === 'wholesale' && ((!empresa && !sinEmpresa) || !dni))
       return NextResponse.json({ error: 'Empresa (o "No tengo empresa") y DNI son obligatorios para cuentas mayoristas' }, { status: 400 })
     const service = createServiceSupabase()         // para DB + admin auth
-    const tenantId = TENANT_ID()
+    const tenantId = await TENANT_ID()
 
     if (!turnstileToken)
       return NextResponse.json({ error: 'Verificación de seguridad requerida' }, { status: 400 })

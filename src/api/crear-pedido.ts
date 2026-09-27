@@ -70,8 +70,8 @@ export async function POST(req: NextRequest) {
 
     // ── 1. Fetch store config (envío + email notificación) ────────────────────
     const [{ data: storeConf }, { data: tenant }] = await Promise.all([
-      supabase.from('store_config').select('custom_shipping, notification_email, email_from_name, reply_to, email_intro_pedido_recibido, min_qty_per_variant').eq('tenant_id', TENANT_ID()).single(),
-      supabase.from('tenants').select('name').eq('id', TENANT_ID()).single(),
+      supabase.from('store_config').select('custom_shipping, notification_email, email_from_name, reply_to, email_intro_pedido_recibido, min_qty_per_variant').eq('tenant_id', await TENANT_ID()).single(),
+      supabase.from('tenants').select('name').eq('id', await TENANT_ID()).single(),
     ])
 
     const storeName = (tenant as any)?.name ?? 'Tienda'
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
       .from('products')
       .select('id, name, min_qty')
       .in('id', productIdsToCheck)
-      .eq('tenant_id', TENANT_ID())
+      .eq('tenant_id', await TENANT_ID())
 
     // Foto de portada por producto — se copia al pedido en este momento (no se
     // resuelve al vuelo en el PDF) para que el recibo siga mostrando la imagen
@@ -253,7 +253,7 @@ export async function POST(req: NextRequest) {
       const { data: existingCustomer } = await supabase
         .from('customers')
         .select('id')
-        .eq('tenant_id', TENANT_ID())
+        .eq('tenant_id', await TENANT_ID())
         .eq('auth_user_id', user.id)
         .maybeSingle()
 
@@ -278,7 +278,7 @@ export async function POST(req: NextRequest) {
         const { data: byEmail } = await supabase
           .from('customers')
           .select('id')
-          .eq('tenant_id', TENANT_ID())
+          .eq('tenant_id', await TENANT_ID())
           .eq('email', email.trim())
           .maybeSingle()
 
@@ -300,7 +300,7 @@ export async function POST(req: NextRequest) {
             .from('customers')
             .insert({
               id: randomUUID(),
-              tenant_id: TENANT_ID(),
+              tenant_id: await TENANT_ID(),
               auth_user_id: user.id,
               email: email.trim(),
               full_name: firstName || fullName,
@@ -323,7 +323,7 @@ export async function POST(req: NextRequest) {
       const { data: existing } = await supabase
         .from('customers')
         .select('id')
-        .eq('tenant_id', TENANT_ID())
+        .eq('tenant_id', await TENANT_ID())
         .eq('email', email.trim())
         .single()
 
@@ -333,7 +333,7 @@ export async function POST(req: NextRequest) {
         const { data: newCustomer } = await supabase
           .from('customers')
           .insert({
-            tenant_id: TENANT_ID(),
+            tenant_id: await TENANT_ID(),
             email: email.trim(),
             full_name: (firstName || fullName).trim(),
             last_name: lastName?.trim() || null,
@@ -356,7 +356,7 @@ export async function POST(req: NextRequest) {
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
-        tenant_id: TENANT_ID(),
+        tenant_id: await TENANT_ID(),
         customer_id: customerId,
         status: 'pending',
         payment_method: paymentMethod,
@@ -457,9 +457,9 @@ export async function POST(req: NextRequest) {
         }),
         fromName: emailFromName,
         replyTo,
-      }).then(({ ok }) => {
+      }).then(async ({ ok }) => {
         return supabase.from('notifications_log').insert({
-          tenant_id: TENANT_ID(),
+          tenant_id: await TENANT_ID(),
           order_id: order.id,
           channel: 'email',
           recipient: email.trim(),
@@ -485,9 +485,9 @@ export async function POST(req: NextRequest) {
             addressZip: addressZip || null,
           }),
           fromName: emailFromName,
-        }).then(({ ok }) => {
+        }).then(async ({ ok }) => {
           return supabase.from('notifications_log').insert({
-            tenant_id: TENANT_ID(),
+            tenant_id: await TENANT_ID(),
             order_id: order.id,
             channel: 'email',
             recipient: ownerEmail,

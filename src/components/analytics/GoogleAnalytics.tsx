@@ -31,7 +31,7 @@ export default async function GoogleAnalytics() {
     const { data } = await supabase
       .from('store_config')
       .select('ga4_measurement_id')
-      .eq('tenant_id', getTenantId())
+      .eq('tenant_id', await getTenantId())
       .maybeSingle()
     measurementId = (data as any)?.ga4_measurement_id?.trim() || null
   } catch {

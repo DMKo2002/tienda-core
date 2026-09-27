@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Dejanos un email o un telefono para contactarte' }, { status: 400 })
 
     const service = createServiceSupabase()
-    const tenantId = TENANT_ID()
+    const tenantId = await TENANT_ID()
     if (!tenantId)
       return NextResponse.json({ error: 'Tienda no identificada' }, { status: 400 })
 

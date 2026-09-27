@@ -27,9 +27,10 @@ export async function createServerSupabase() {
  * En producción lo resuelve el middleware desde el dominio (x-tenant-id header).
  * En local cae al env var NEXT_PUBLIC_TENANT_ID.
  */
-export function getTenantId(): string {
+export async function getTenantId(): Promise<string> {
   try {
-    const id = headers().get('x-tenant-id')
+    const h = await headers()
+    const id = h.get('x-tenant-id')
     if (id) return id
   } catch {}
   return process.env.NEXT_PUBLIC_TENANT_ID ?? ''

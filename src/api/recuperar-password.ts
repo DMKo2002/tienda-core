@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     if (!email) return NextResponse.json({ error: 'Email requerido' }, { status: 400 })
 
     const service = createServiceSupabase()
-    const tenantId = TENANT_ID()
+    const tenantId = await TENANT_ID()
     const normalizedEmail = String(email).trim().toLowerCase()
     console.log('[recuperar] tenantId:', tenantId, 'email:', normalizedEmail)
     const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
