@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ImageOff, ChevronLeft, ChevronRight, ShoppingBag, Check } from 'lucide-react'
 import { useCart } from './CartContext'
@@ -177,6 +178,7 @@ export default function ProductCard({
   }
 
   // ── Comprar directo desde el card (producto sin talle/color real) ──────────
+  const router = useRouter()
   const { addItem } = useCart()
   const [added, setAdded] = useState(false)
   const isSimpleProduct = colors.length === 0 && sizes.length === 0
@@ -331,13 +333,15 @@ export default function ProductCard({
               Solo para cuentas mayoristas
             </span>
           ) : (
-            <a
-              href="/cuenta/login"
-              onClick={e => e.stopPropagation()}
-              className="text-xs text-[var(--color-stone)] hover:text-[var(--color-charcoal)] transition-colors underline"
+            <span
+              role="link"
+              tabIndex={0}
+              onClick={e => { e.preventDefault(); e.stopPropagation(); router.push('/cuenta/login') }}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); router.push('/cuenta/login') } }}
+              className="text-xs text-[var(--color-stone)] hover:text-[var(--color-charcoal)] transition-colors underline cursor-pointer"
             >
               {priceVisibility === 'wholesale_only' ? 'Precio solo para mayoristas' : 'Inicia sesion para ver precio'}
-            </a>
+            </span>
           )}
         </div>
 
