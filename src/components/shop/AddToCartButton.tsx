@@ -128,16 +128,31 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
     return ignoreStock || v.stock > 0
   }
 
+  // Un talle/color está "disponible" si se puede comprar en AL MENOS UNA
+  // combinación con el otro eje — no solo con lo que hoy está seleccionado.
+  // Antes se miraba solo la selección actual: si la ficha abría en T1 y el
+  // color "Chocolate" solo existía en T2, el color salía tachado "sin stock"
+  // y no se podía elegir, aunque T2 estuviera a la venta (ej: Mykonos L549).
+  // Si la combinación elegida no existe NO se cambia nada solo: se atenúa la
+  // opción y se avisa debajo en qué talle/color sí está (ver aviso más abajo).
   function isSizeAvailable(size: string): boolean {
     if (colors.length === 0) return isVariantSellable(size, null)
-    if (selectedColor) return isVariantSellable(size, selectedColor)
     return colors.some(c => isVariantSellable(size, c))
   }
 
   function isColorAvailable(color: string): boolean {
     if (sizes.length === 0) return isVariantSellable(null, color)
-    if (selectedSize) return isVariantSellable(selectedSize, color)
     return sizes.some(s => isVariantSellable(s, color))
+  }
+
+  function pickColor(color: string) {
+    setSelectedColor(color)
+    setStockError(null)
+  }
+
+  function pickSize(size: string) {
+    setSelectedSize(size)
+    setStockError(null)
   }
 
   const selectedVariant = findVariant(selectedSize, selectedColor)
@@ -284,7 +299,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
                 return (
                   <button
                     key={color}
-                    onClick={() => { if (available) { setSelectedColor(color); setStockError(null) } }}
+                    onClick={() => { if (available) pickColor(color) }}
                     title={available ? color : `${color} - sin stock`}
                     disabled={!available}
                     style={{
@@ -293,7 +308,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
                       outline: selected ? '2px solid white' : 'none',
                       outlineOffset: -4,
                       cursor: available ? 'pointer' : 'not-allowed',
-                      opacity: available ? 1 : 0.35,
+                      opacity: !available ? 0.35 : (sizes.length > 0 && selectedSize && !isVariantSellable(selectedSize, color) ? 0.5 : 1),
                       transition: 'transform 0.15s',
                       transform: selected ? 'scale(1.15)' : 'scale(1)',
                       flexShrink: 0,
@@ -318,13 +333,13 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
                 return (
                   <button
                     key={color}
-                    onClick={() => { if (available) { setSelectedColor(color); setStockError(null) } }}
+                    onClick={() => { if (available) pickColor(color) }}
                     disabled={!available}
                     className={`h-9 px-3 text-xs font-light border transition-colors rounded-sm relative ${
                       selected
                         ? 'border-[var(--color-charcoal)] bg-[var(--color-charcoal)] text-white'
                         : available
-                        ? 'border-[var(--color-border)] text-[var(--color-charcoal)] hover:border-[var(--color-charcoal)]'
+                        ? `border-[var(--color-border)] text-[var(--color-charcoal)] hover:border-[var(--color-charcoal)] ${sizes.length > 0 && selectedSize && !isVariantSellable(selectedSize, color) ? 'opacity-50' : ''}`
                         : 'border-[var(--color-border)] text-[var(--color-stone)]/40 cursor-not-allowed line-through'
                     }`}
                   >
@@ -346,13 +361,13 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
               return (
                 <button
                   key={size}
-                  onClick={() => { if (available) { setSelectedSize(size); setStockError(null) } }}
+                  onClick={() => { if (available) pickSize(size) }}
                   disabled={!available}
                   className={`h-9 px-3 text-xs font-light border transition-colors rounded-sm relative ${
                     selectedSize === size
                       ? 'border-[var(--color-charcoal)] bg-[var(--color-charcoal)] text-white'
                       : available
-                      ? 'border-[var(--color-border)] text-[var(--color-charcoal)] hover:border-[var(--color-charcoal)]'
+                      ? `border-[var(--color-border)] text-[var(--color-charcoal)] hover:border-[var(--color-charcoal)] ${colors.length > 0 && selectedColor && !isVariantSellable(size, selectedColor) ? 'opacity-50' : ''}`
                       : 'border-[var(--color-border)] text-[var(--color-stone)]/40 cursor-not-allowed line-through'
                   }`}
                 >
@@ -363,6 +378,24 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
           </div>
         </div>
       )}
+
+      {/* Combinación elegida que no se vende (ej: Chocolate existe solo en T2 y
+          está elegido T1): se dice claro y se ofrece pasar, sin cambiar nada solo. */}
+      {sizes.length > 0 && colors.length > 0 && selectedSize && selectedColor && !isVariantSellable(selectedSize, selectedColor) && (() => {
+        const altSizes = sizes.filter(sz => isVariantSellable(sz, selectedColor))
+        if (altSizes.length === 0) return null
+        return (
+          <p className="text-xs text-amber-700 leading-relaxed">
+            {selectedColor} no está disponible en {selectedSize}. Disponible en:{' '}
+            {altSizes.map((sz, i) => (
+              <span key={sz}>
+                {i > 0 && ', '}
+                <button type="button" onClick={() => pickSize(sz)} className="underline font-medium">{sz}</button>
+              </span>
+            ))}
+          </p>
+        )
+      })()}
 
       {/* Atributos de la variante elegida — se actualizan al cambiar de
           talle/color/opción, porque cada variante tiene los suyos. */}
