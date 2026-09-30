@@ -111,6 +111,9 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
   const [stockError, setStockError] = useState<string | null>(null)
+  // Precios ocultos (ej: visibilidad "solo mayoristas") y el cliente intenta
+  // comprar: en vez de un botón muerto, se le explica qué tiene que hacer.
+  const [showWholesaleNotice, setShowWholesaleNotice] = useState(false)
 
   function findVariant(size: string | null, color: string | null): Variant | undefined {
     return findVariantFor(product.variants, sizes, colors, size, color)
@@ -204,6 +207,13 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
   }, [product.id])
 
   function handleAddToCart() {
+    // Sin permiso para ver precios no se puede comprar. Antes el botón quedaba
+    // deshabilitado sin decir nada (effectivePrice = 0 porque el cliente no
+    // tiene precio visible), y parecía que la tienda estaba rota.
+    if (!showPrices) {
+      setShowWholesaleNotice(true)
+      return
+    }
     if (!selectedVariant || !effectivePrice) return
     if (selectedVariant.active === false) return
     const maxStock = selectedVariant.stock ?? 0
@@ -408,7 +418,7 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
 
       <button
         onClick={handleAddToCart}
-        disabled={!selectedVariant || !inStock || !effectivePrice}
+        disabled={!selectedVariant || showAsOutOfStock || (showPrices && (!inStock || !effectivePrice))}
         className={`w-full py-4 text-xs tracking-[0.2em] uppercase font-medium transition-all duration-300 flex items-center justify-center gap-3 ${
           added
             ? 'bg-[var(--color-stone)] text-white cursor-default'
@@ -431,6 +441,16 @@ export default function AddToCartButton({ product, sizes, colors, showPrices = t
           </>
         )}
       </button>
+
+      {!showPrices && showWholesaleNotice && (
+        <div role="alert" className="border border-[var(--color-border)] bg-[var(--color-border)]/30 px-4 py-3 text-xs leading-relaxed text-[var(--color-charcoal)]">
+          Para agregar productos al carrito tenés que registrarte como mayorista.{' '}
+          <Link href="/cuenta/registro" className="underline font-medium">Registrate acá</Link>
+          {' '}o{' '}
+          <Link href="/cuenta/login" className="underline font-medium">iniciá sesión</Link>
+          {' '}si ya tenés una cuenta mayorista.
+        </div>
+      )}
 
       <Link
         href="/carrito"
