@@ -21,7 +21,8 @@
 import type { Metadata, MetadataRoute } from 'next'
 import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
-import { createServerSupabase, getTenantId } from './supabase-server'
+import { createAnonSupabase, createServerSupabase, getTenantId } from './supabase-server'
+import { cached } from './ttl-cache'
 
 // El dominio varía por tenant (custom domain) — no se puede fijar con un env
 // var estático compartido por todo el deploy. Se arma desde el host real del
@@ -45,16 +46,30 @@ export async function getBaseUrl(): Promise<string> {
  */
 export async function buildStoreMetadata(fallbackDescription: string): Promise<Metadata> {
   try {
-    const supabase = await createServerSupabase()
     const tenantId = await getTenantId()
-    const [{ data: tenant }, { data: config }] = await Promise.all([
-      supabase.from('tenants').select('name').eq('id', tenantId).maybeSingle(),
-      supabase
-        .from('store_config')
-        .select('logo_url, favicon_url, hero_image_url, seo_title, seo_description')
-        .eq('tenant_id', tenantId)
-        .maybeSingle(),
-    ])
+    // Incidente 2026-10-14: esto corria en CADA pagina (generateMetadata del
+    // layout) con 2 consultas sin cache ni timeout. Son datos publicos y
+    // iguales para todos los visitantes: cliente anon sin cookies y cache de
+    // 30s por tenant. Los cambios de SEO/logo del panel tardan hasta 30s.
+    const { tenant, config } = await cached(`store-metadata:${tenantId}`, 30_000, async () => {
+      const supabase = createAnonSupabase()
+      const [tenantRes, configRes] = await Promise.all([
+        supabase
+          .from('tenants')
+          .select('name')
+          .eq('id', tenantId)
+          .abortSignal(AbortSignal.timeout(5_000))
+          .maybeSingle(),
+        supabase
+          .from('store_config')
+          .select('logo_url, favicon_url, hero_image_url, seo_title, seo_description')
+          .eq('tenant_id', tenantId)
+          .abortSignal(AbortSignal.timeout(5_000))
+          .maybeSingle(),
+      ])
+      if (tenantRes.error) throw new Error(tenantRes.error.message)
+      return { tenant: tenantRes.data, config: configRes.error ? null : configRes.data }
+    })
     const storeName = tenant?.name ?? 'Tienda'
     // Título mostrado en Google para la home — si el tenant no cargó uno propio,
     // se usa el nombre de la tienda. El template de sufijo de las demás páginas
@@ -105,18 +120,58 @@ export async function buildStoreMetadata(fallbackDescription: string): Promise<M
 // Sitemap dinámico — se regenera con cada build o con revalidación.
 // Usa el cliente anon (no service role): alcanza con leer productos/categorías
 // activos, que ya son públicos vía RLS para el storefront.
+//
+// Incidente 2026-10-14: esta consulta no tenia timeout y el template la
+// generaba DURANTE EL BUILD; con la base saturada tardo mas de 60s 3 veces y
+// el deploy de produccion fallo ("Failed to build /sitemap.xml/route").
+// Ahora: los templates declaran `export const dynamic = 'force-dynamic'` en su
+// sitemap.ts (no se genera en el build), la consulta tiene timeout de 8s, y el
+// resultado se cachea 5 min por tenant. Si la base falla y no hay cache, se
+// devuelve el sitemap con solo las rutas estaticas en vez de lanzar error.
 export async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
   const BASE_URL = await getBaseUrl()
   const tenantId = await getTenantId()
 
-  const [{ data: products }, { data: categories }] = await Promise.all([
-    supabase.from('products').select('slug, updated_at').eq('tenant_id', tenantId).eq('active', true),
-    supabase.from('categories').select('slug').eq('tenant_id', tenantId).eq('active', true),
-  ])
+  type SitemapData = {
+    products: { slug: string; updated_at: string | null }[]
+    categories: { slug: string | null }[]
+  }
+  let products: SitemapData['products'] = []
+  let categories: SitemapData['categories'] = []
+  try {
+    const data = await cached<SitemapData>(`sitemap:${tenantId}`, 5 * 60_000, async () => {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { persistSession: false, autoRefreshToken: false } }
+      )
+      const [pRes, cRes] = await Promise.all([
+        supabase
+          .from('products')
+          .select('slug, updated_at')
+          .eq('tenant_id', tenantId)
+          .eq('active', true)
+          .abortSignal(AbortSignal.timeout(8_000)),
+        supabase
+          .from('categories')
+          .select('slug')
+          .eq('tenant_id', tenantId)
+          .eq('active', true)
+          .abortSignal(AbortSignal.timeout(8_000)),
+      ])
+      if (pRes.error || cRes.error) {
+        throw new Error(`sitemap query failed: ${pRes.error?.message ?? cRes.error?.message}`)
+      }
+      return {
+        products: (pRes.data ?? []) as SitemapData['products'],
+        categories: (cRes.data ?? []) as SitemapData['categories'],
+      }
+    })
+    products = data.products
+    categories = data.categories
+  } catch (err) {
+    console.error('[sitemap] consulta fallo y no hay cache, devuelvo solo rutas estaticas:', err)
+  }
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: BASE_URL, lastModified: new Date(), priority: 1.0, changeFrequency: 'weekly' as const },
