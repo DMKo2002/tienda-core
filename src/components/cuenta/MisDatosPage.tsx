@@ -51,6 +51,7 @@ export default async function MisDatosPage() {
         direccion: customer?.address_street ?? '',
         provincia: customer?.address_province ?? '',
         localidad: customer?.address_city ?? '',
+        codigoPostal: customer?.address_zip ?? '',
       }}
     />
   )
