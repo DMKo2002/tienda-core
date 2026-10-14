@@ -244,6 +244,13 @@ export async function POST(req: NextRequest) {
     // ── 5. Customer upsert ────────────────────────────────────────────────────
     let customerId: string | null = null
 
+    // El checkout tiene un único campo "DNI/CUIT". Lo seguimos guardando en cuit
+    // (compatibilidad con lo ya existente) y además, si son 7-8 dígitos, en dni,
+    // que es lo que leen "Mis datos" y el registro. Nunca pisamos dni con null.
+    const docDigits = (cuil || '').replace(/\D/g, '')
+    const dniFromCheckout = docDigits.length >= 7 && docDigits.length <= 8 ? docDigits : null
+    const dniPatch = dniFromCheckout ? { dni: dniFromCheckout } : {}
+
     if (user) {
       // auth_user_id (no id) identifica a esta persona — id es propio de la fila/tienda.
       // Una misma cuenta de login puede tener una fila de customer distinta en cada
@@ -266,6 +273,7 @@ export async function POST(req: NextRequest) {
           full_name: firstName || fullName,
           last_name: lastName || null,
           cuit: cuil || null,
+          ...dniPatch,
           phone: phone || null,
           address_street: addressStreet || null,
           address_city: addressCity || null,
@@ -289,6 +297,7 @@ export async function POST(req: NextRequest) {
             full_name: firstName || fullName,
             last_name: lastName || null,
             cuit: cuil || null,
+            ...dniPatch,
             phone: phone || null,
             address_street: addressStreet || null,
             address_city: addressCity || null,
@@ -306,6 +315,7 @@ export async function POST(req: NextRequest) {
               full_name: firstName || fullName,
               last_name: lastName || null,
               cuit: cuil || null,
+              ...dniPatch,
               phone: phone || null,
               address_street: addressStreet || null,
               address_city: addressCity || null,
@@ -322,13 +332,27 @@ export async function POST(req: NextRequest) {
     } else {
       const { data: existing } = await supabase
         .from('customers')
-        .select('id')
+        .select('id, cuit, dni, phone, address_street, address_city, address_province, address_zip')
         .eq('tenant_id', await TENANT_ID())
         .eq('email', email.trim())
-        .single()
+        .maybeSingle()
 
       if (existing) {
         customerId = existing.id
+        // Invitado con un email que ya tiene ficha: sin sesión no podemos confiar en
+        // que sea la misma persona, así que NUNCA pisamos datos existentes — solo
+        // completamos los campos que están vacíos (DNI, localidad, dirección, etc.).
+        const fill: Record<string, string> = {}
+        if (!existing.cuit && cuil) fill.cuit = cuil
+        if (!existing.dni && dniFromCheckout) fill.dni = dniFromCheckout
+        if (!existing.phone && phone) fill.phone = phone
+        if (!existing.address_street && addressStreet) fill.address_street = addressStreet
+        if (!existing.address_city && addressCity) fill.address_city = addressCity
+        if (!existing.address_province && addressProvince) fill.address_province = addressProvince
+        if (!existing.address_zip && addressZip) fill.address_zip = addressZip
+        if (Object.keys(fill).length > 0) {
+          await supabase.from('customers').update(fill).eq('id', existing.id)
+        }
       } else {
         const { data: newCustomer } = await supabase
           .from('customers')
@@ -338,6 +362,7 @@ export async function POST(req: NextRequest) {
             full_name: (firstName || fullName).trim(),
             last_name: lastName?.trim() || null,
             cuit: cuil || null,
+            ...dniPatch,
             phone: phone || null,
             address_street: addressStreet || null,
             address_city: addressCity || null,

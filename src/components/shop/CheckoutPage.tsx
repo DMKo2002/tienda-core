@@ -212,7 +212,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
 
       const { data: cust } = await supabase
         .from('customers')
-        .select('email, full_name, last_name, cuit, phone, address_street, address_city, address_province')
+        .select('email, full_name, last_name, cuit, dni, phone, address_street, address_city, address_province')
         .eq('auth_user_id', user.id)
         .eq('tenant_id', tenantId)
         .maybeSingle()
@@ -224,7 +224,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
       if (cust) {
         if (cust.full_name) setNombre(cust.full_name)
         if (cust.last_name) setApellido(cust.last_name)
-        if (cust.cuit) setCuil(cust.cuit)
+        if (cust.cuit || cust.dni) setCuil(cust.cuit || cust.dni)
         if (cust.phone) setPhone(cust.phone)
         if (cust.address_street) setAddressStreet(cust.address_street)
         if (cust.address_city) setAddressCity(cust.address_city)
