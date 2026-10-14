@@ -1,4 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { cached } from './ttl-cache'
+
+// Tope de espera por consulta. Sin esto, con la base saturada cada request
+// quedaba colgado hasta que Vercel lo cortaba a los 25s con un 504.
+const DB_TIMEOUT_MS = 5_000
 
 export interface StoreBranch {
   name: string
@@ -97,6 +102,25 @@ export async function getStoreData(
   supabase: SupabaseClient,
   tenantId: string
 ): Promise<{ tenant: StoreTenant | null; config: StoreConfig | null }> {
+  // Cache de 30s por tenant (incidente 2026-10-14: esto corria en CADA visita
+  // y, junto con el middleware, agoto el Disk IO de Supabase). Los cambios
+  // del panel (logo, contacto, footer) tardan hasta 30s en verse. Si la base
+  // falla, se sirve el ultimo valor conocido; si nunca hubo uno, se mantiene
+  // el contrato de siempre: no lanza, devuelve { tenant: null, config: null }.
+  try {
+    return await cached(`store-data:${tenantId}`, 30_000, () =>
+      loadStoreData(supabase, tenantId)
+    )
+  } catch (err) {
+    console.error('[getStoreData] sin cache y la base fallo:', err)
+    return { tenant: null, config: null }
+  }
+}
+
+async function loadStoreData(
+  supabase: SupabaseClient,
+  tenantId: string
+): Promise<{ tenant: StoreTenant | null; config: StoreConfig | null }> {
   // OJO: .limit(1) en vez de .single() a propósito. .single() exige que
   // haya EXACTAMENTE 1 fila y tira error si hay 0 o 2+ (fila duplicada
   // o faltante para ese tenant_id) — eso rompe el pedido entero aunque
@@ -104,12 +128,25 @@ export async function getStoreData(
   // elemento, nunca explota por cantidad de filas; en el peor caso, si
   // hay una fila vieja duplicada, muestra la primera que encuentre.
   const [tenantRes, configRes] = await Promise.all([
-    supabase.from('tenants').select('name, domain').eq('id', tenantId).limit(1),
-    supabase.from('store_config').select(FUNCTIONAL_FIELDS).eq('tenant_id', tenantId).limit(1),
+    supabase
+      .from('tenants')
+      .select('name, domain')
+      .eq('id', tenantId)
+      .limit(1)
+      .abortSignal(AbortSignal.timeout(DB_TIMEOUT_MS)),
+    supabase
+      .from('store_config')
+      .select(FUNCTIONAL_FIELDS)
+      .eq('tenant_id', tenantId)
+      .limit(1)
+      .abortSignal(AbortSignal.timeout(DB_TIMEOUT_MS)),
   ])
 
   if (tenantRes.error) {
     console.error('[getStoreData] tenants query failed:', tenantRes.error.message)
+    // Se lanza para que NO se cachee la falla (el wrapper sirve el valor
+    // viejo si lo hay, o devuelve nulls si no).
+    throw new Error(`tenants query failed: ${tenantRes.error.message}`)
   }
 
   let config = ((configRes.data?.[0] as StoreConfig) ?? null)
@@ -124,6 +161,7 @@ export async function getStoreData(
       .select(MINIMAL_FIELDS)
       .eq('tenant_id', tenantId)
       .limit(1)
+      .abortSignal(AbortSignal.timeout(DB_TIMEOUT_MS))
     if (fallback.error) {
       console.error(
         `[getStoreData] minimal fallback ALSO failed for tenant ${tenantId}:`,

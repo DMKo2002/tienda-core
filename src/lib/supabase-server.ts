@@ -40,6 +40,20 @@ export async function getTenantId(): Promise<string> {
 export const TENANT_ID = getTenantId
 
 /**
+ * Cliente anon SIN cookies ni sesion. Solo para leer datos publicos de la
+ * tienda (categorias, catalogo para visitantes anonimos) dentro de loaders
+ * cacheados: un cliente con cookies del usuario no se puede compartir entre
+ * visitas, uno anonimo si.
+ */
+export function createAnonSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  )
+}
+
+/**
  * Cliente con service role key — bypasea RLS completamente.
  * Usar para operaciones sobre customers, users, o cualquier tabla con RLS restrictiva.
  * NUNCA exponer al browser (solo usar en server components / API routes).
