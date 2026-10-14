@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { PROVINCIAS } from './RegistroForm'
+import LocalidadAutocomplete from '../shop/LocalidadAutocomplete'
 
 type Props = {
   isWholesale: boolean
@@ -17,6 +18,7 @@ type Props = {
     direccion: string
     provincia: string
     localidad: string
+    codigoPostal: string
   }
 }
 
@@ -173,12 +175,23 @@ export default function MisDatosForm({ isWholesale, initial }: Props) {
             </div>
             <div>
               <label className="block text-[10px] tracking-[0.15em] uppercase text-[var(--color-stone)] mb-1.5">Localidad</label>
-              <input
-                className="w-full px-3 py-2.5 border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:border-[var(--color-charcoal)] transition-colors"
-                placeholder="Ej: Mar del Plata"
-                value={form.localidad} onChange={e => set('localidad', e.target.value)}
+              <LocalidadAutocomplete
+                value={form.localidad}
+                provincia={form.provincia}
+                onChange={v => set('localidad', v)}
+                inputClass="w-full px-3 py-2.5 border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:border-[var(--color-charcoal)] transition-colors"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] tracking-[0.15em] uppercase text-[var(--color-stone)] mb-1.5">Código postal</label>
+            <input
+              className="w-full px-3 py-2.5 border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:border-[var(--color-charcoal)] transition-colors"
+              placeholder="Ej: 1406"
+              inputMode="numeric"
+              value={form.codigoPostal} onChange={e => set('codigoPostal', e.target.value)}
+            />
           </div>
 
           {error && (

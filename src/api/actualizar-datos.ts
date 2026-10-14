@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
     const body = await req.json()
-    const { nombre, apellido, dni, telefono, email, empresa, cuit, direccion, provincia, localidad } = body
+    const { nombre, apellido, dni, telefono, email, empresa, cuit, direccion, provincia, localidad, codigoPostal } = body
     if (!nombre) return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
 
     const service = createServiceSupabase()
@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
       address_street: direccion || null,
       address_province: provincia || null,
       address_city: localidad || null,
+      address_zip: codigoPostal ? String(codigoPostal).trim() : null,
       // Vincular auth_user_id acá también, por si el customer se resolvió
       // por email (importado, sin vincular todavía).
       auth_user_id: user.id,

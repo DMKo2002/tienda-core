@@ -9,6 +9,7 @@ import { ArrowLeft, CreditCard, Building2, ImageOff, Check, Banknote } from 'luc
 import { createClient, TENANT_ID } from '../../lib/supabase'
 import { trackMetaEvent } from '../../lib/meta-pixel-events'
 import MercadoPagoBrick from './MercadoPagoBrick'
+import LocalidadAutocomplete from './LocalidadAutocomplete'
 
 const PROVINCIAS = [
   'Buenos Aires', 'Ciudad Autónoma de Buenos Aires', 'Catamarca', 'Chaco', 'Chubut',
@@ -16,68 +17,6 @@ const PROVINCIAS = [
   'Mendoza', 'Misiones', 'Neuquén', 'Río Negro', 'Salta', 'San Juan', 'San Luis',
   'Santa Cruz', 'Santa Fe', 'Santiago del Estero', 'Tierra del Fuego', 'Tucumán',
 ]
-
-function LocalidadAutocomplete({ value, provincia, onChange, inputClass }: {
-  value: string; provincia: string; onChange: (v: string) => void; inputClass: string
-}) {
-  const [query, setQuery] = useState(value)
-  const [sugerencias, setSugerencias] = useState<string[]>([])
-  const [open, setOpen] = useState(false)
-  const [buscando, setBuscando] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => { setQuery(''); onChange(''); setSugerencias([]) }, [provincia])
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  function handleInput(v: string) {
-    setQuery(v); onChange('')
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (!provincia || v.length < 2) { setSugerencias([]); setOpen(false); return }
-    debounceRef.current = setTimeout(async () => {
-      setBuscando(true)
-      try {
-        const url = `https://apis.datos.gob.ar/georef/api/localidades?provincia=${encodeURIComponent(provincia)}&nombre=${encodeURIComponent(v)}&orden=nombre&max=8&campos=nombre`
-        const res = await fetch(url)
-        const data = await res.json()
-        const nombres: string[] = [...new Set((data.localidades ?? []).map((l: any) => l.nombre))] as string[]
-        setSugerencias(nombres); setOpen(nombres.length > 0)
-      } catch { setSugerencias([]) } finally { setBuscando(false) }
-    }, 300)
-  }
-
-  return (
-    <div ref={containerRef} className="relative">
-      <input
-        type="text" autoComplete="off"
-        className={inputClass}
-        placeholder={provincia ? 'Escribí para buscar...' : 'Primero elegí una provincia'}
-        disabled={!provincia} value={query}
-        onChange={e => handleInput(e.target.value)}
-        onFocus={() => sugerencias.length > 0 && setOpen(true)}
-      />
-      {buscando && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="w-3 h-3 border border-gray-300 border-t-transparent rounded-full animate-spin" /></div>}
-      {open && sugerencias.length > 0 && (
-        <ul className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-[var(--color-border)] shadow-lg max-h-48 overflow-y-auto">
-          {sugerencias.map(s => (
-            <li key={s}>
-              <button type="button" onMouseDown={() => { setQuery(s); onChange(s); setSugerencias([]); setOpen(false) }}
-                className="w-full text-left px-3 py-2 text-sm text-[var(--color-charcoal)] hover:bg-[#F2EEE9] transition-colors">
-                {s}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
 
 const formatPrice = (n: number) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
@@ -212,7 +151,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
 
       const { data: cust } = await supabase
         .from('customers')
-        .select('email, full_name, last_name, cuit, dni, phone, address_street, address_city, address_province')
+        .select('email, full_name, last_name, cuit, dni, phone, address_street, address_city, address_province, address_zip')
         .eq('auth_user_id', user.id)
         .eq('tenant_id', tenantId)
         .maybeSingle()
@@ -229,6 +168,7 @@ export default function CheckoutPage({ Navbar, Footer, shopHref = '/tienda', car
         if (cust.address_street) setAddressStreet(cust.address_street)
         if (cust.address_city) setAddressCity(cust.address_city)
         if (cust.address_province) setAddressProvince(cust.address_province)
+        if (cust.address_zip) setAddressZip(cust.address_zip)
       }
     })
   }, [])
